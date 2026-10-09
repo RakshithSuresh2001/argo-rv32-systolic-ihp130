@@ -1,0 +1,139 @@
+meta:
+  version: 3
+  flow: Chip
+  substituting_steps:
+    Magic.StreamOut: null
+    KLayout.XOR: null
+    Checker.XOR: null
+    Magic.DRC: null
+    Checker.MagicDRC: null
+    Magic.SpiceExtraction: OpenROAD.WriteCDL
+    Checker.IllegalOverlap: null
+    Netgen.LVS: KLayout.LVS
+DESIGN_NAME: soc_padframe
+VERILOG_FILES:
+- dir::soc_padframe.sv
+- dir::soc_top.sv
+- dir::picorv32/picorv32.v
+- dir::systolic_array.sv
+- dir::pe.sv
+- dir::spi_slave.sv
+- dir::uart_tx.sv
+- dir::axilite_slave.sv
+- dir::sram_word_ctrl.sv
+CLOCK_PERIOD: 10
+FP_SIZING: absolute
+DIE_AREA:
+- 0
+- 0
+- 2000
+- 2000
+CORE_AREA:
+- 350
+- 350
+- 1650
+- 1650
+CLOCK_PORT: clk_PAD
+PDN_HOFFSET: 5
+PDN_HWIDTH: 2
+PDN_HPITCH: 30
+PDN_SKIPTRIM: true
+DRT_ANTENNA_REPAIR_ITERS: 1
+MACROS:
+  RM_IHPSG13_1P_1024x32_c2_bm_bist:
+    gds:
+    - pdk_dir::libs.ref/sg13cmos5l_sram/gds/RM_IHPSG13_1P_1024x32_c2_bm_bist.gds
+    lef:
+    - pdk_dir::libs.ref/sg13cmos5l_sram/lef/RM_IHPSG13_1P_1024x32_c2_bm_bist.lef
+    lib:
+      '*_fast_*':
+      - pdk_dir::libs.ref/sg13cmos5l_sram/lib/RM_IHPSG13_1P_1024x32_c2_bm_bist_fast_1p32V_m55C.lib
+      '*_slow_*':
+      - pdk_dir::libs.ref/sg13cmos5l_sram/lib/RM_IHPSG13_1P_1024x32_c2_bm_bist_slow_1p08V_125C.lib
+      '*_typ_*':
+      - pdk_dir::libs.ref/sg13cmos5l_sram/lib/RM_IHPSG13_1P_1024x32_c2_bm_bist_typ_1p20V_25C.lib
+    instances:
+      i_soc_top.u_isram.u_mem:
+        location:
+        - 790.0
+        - 370.0
+        orientation: FS
+      i_soc_top.u_dsram.u_mem:
+        location:
+        - 790.0
+        - 1290.0
+        orientation: N
+EXTRA_VERILOG_MODELS:
+- dir::RM_IHPSG13_1P_1024x32_c2_bm_bist_stub.v
+- dir::sg13cmos5l_io_stub.v
+PDN_MACRO_CONNECTIONS:
+- .*u_mem VPWR VGND VDD! VSS!
+- .*u_mem VPWR VGND VDDARRAY! VSS!
+PDN_CFG: dir::pdn_cfg_cmos5l.tcl
+PDN_HORIZONTAL_HALO: 90
+PDN_VERTICAL_HALO: 90
+pdk::ihp-sg13cmos5l:
+  FP_CORE_UTIL: 45
+PAD_LEFS:
+- dir::bondpad/bondpad_70x70.lef
+- pdk_dir::libs.ref/sg13cmos5l_io/lef/sg13cmos5l_io.lef
+PAD_VERILOG_MODELS:
+- dir::bondpad/bondpad_70x70.v
+- dir::sg13cmos5l_io_stub.v
+PAD_NORTH:
+- clk_pad
+- rst_n_pad
+- vdd_pad
+- vss_pad
+PAD_WEST:
+- g_inputs\[0\].input_pad
+- g_outputs\[0\].output_pad
+PAD_EAST:
+- g_inputs\[1\].input_pad
+- g_inputs\[2\].input_pad
+- g_inputs\[3\].input_pad
+- g_outputs\[1\].output_pad
+PAD_SOUTH:
+- iovdd_pad
+- iovss_pad
+PAD_CORNER_SITE_NAME: sg13cmos5l_cornerSite
+PAD_BONDPAD_NAME: bondpad_70x70
+PAD_BONDPAD_WIDTH: 70
+PAD_BONDPAD_HEIGHT: 70
+PAD_BONDPAD_OFFSETS:
+  "sg13cmos5l_IOPad.*": [5.0, -70.0]
+PAD_GDS:
+- pdk_dir::libs.ref/sg13cmos5l_io/gds/sg13cmos5l_io.gds
+- dir::bondpad/bondpad_70x70.gds
+PDN_EXTEND_TO: core_ring
+PDN_CORE_RING: true
+PDN_CORE_RING_CONNECT_TO_PADS: true
+PDN_CORE_RING_ALLOW_OUT_OF_DIE: false
+PNR_SDC_FILE: dir::soc_padframe.sdc
+SIGNOFF_SDC_FILE: dir::soc_padframe.sdc
+DRT_ANTENNA_REPAIR_MARGIN: 10
+PDN_CORE_RING_VWIDTH: 5
+PDN_CORE_RING_HWIDTH: 5
+PDN_CORE_RING_VSPACING: 2
+PDN_CORE_RING_HSPACING: 2
+PDN_CORE_RING_VOFFSET: 4.5
+PDN_CORE_RING_HOFFSET: 4.5
+GRT_ALLOW_CONGESTION: true
+PL_RESIZER_HOLD_SLACK_MARGIN: 0.05
+EXTRA_CDLS:
+- pdk_dir::libs.ref/sg13cmos5l_sram/cdl/RM_IHPSG13_1P_1024x32_c2_bm_bist.cdl
+
+PAD_CDLS: [dir::sg13cmos5l_io_fixed.cdl]
+
+# post-route gap fill: plain fill cells only (decap cells have Metal1 inside and landed under Metal1 routing)
+DECAP_CELLS: [sg13cmos5l_fill_8, sg13cmos5l_fill_4]
+
+KLAYOUT_LVS_SCRIPT: dir::lvs_local/sg13cmos5l.lvs
+KLAYOUT_LVS_OPTIONS:
+  run_mode: deep
+  blackbox: "sg13cmos5l_Corner,sg13cmos5l_Filler*,sg13cmos5l_IOPad*,sg13cmos5l_Clamp_*,sg13cmos5l_DC*Diode,sg13cmos5l_Level*,sg13cmos5l_GateLevel*,sg13cmos5l_GateDecode,sg13cmos5l_RCClamp*,sg13cmos5l_SecondaryProtection,sg13cmos5l_io_*,RSC_IHPSG13_*,RM_IHPSG13_*,bondpad_*"
+
+KLAYOUT_FILLER_SCRIPT: dir::fill_local/filler_local.py
+RUN_POST_GRT_DESIGN_REPAIR: true
+RUN_POST_GRT_RESIZER_TIMING: true
+IGNORE_DISCONNECTED_MODULES: [bondpad_70x70]

@@ -1,0 +1,20 @@
+SDF: runs/c5l_v3/final/sdf/nom_typ_1p20V_25C/soc_padframe__nom_typ_1p20V_25C.sdf
+compiling (sdfnoic) ...
+compile rc=0, error lines: 0
+running hello, expecting "HI", timeout 20000 us ...
+[50000000] alive
+[100000000] alive
+[150000000] alive
+[162700000] 27 words loaded over SPI, RUN
+[200000000] alive
+[250000000] alive
+[300000000] alive
+[350000000] alive
+[400000000] alive
+[430333000] UART line: "HI"
+PASS
+tb/tb_gls.sv:46: $finish called at 430332841 (1ps)
+
+real	0m0.000s
+user	5m34.674s
+sys	0m0.282s

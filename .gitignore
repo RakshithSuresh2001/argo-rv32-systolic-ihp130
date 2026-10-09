@@ -1,0 +1,9 @@
+runs/
+*.log
+*.vvp
+*.vcd
+gls_noic.sdf
+tb/tb_gls.sv
+firmware/*.elf
+firmware/*.bin
+__pycache__/

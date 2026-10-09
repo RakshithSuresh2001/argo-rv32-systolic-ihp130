@@ -1,0 +1,70 @@
+SDF: runs/c5l_v3/final/sdf/nom_typ_1p20V_25C/soc_padframe__nom_typ_1p20V_25C.sdf
+compiling (sdfnoic) ...
+compile rc=0, error lines: 0
+running sa_test, expecting "PASS", timeout 20000 us ...
+[50000000] alive
+[100000000] alive
+[150000000] alive
+[200000000] alive
+[250000000] alive
+[300000000] alive
+[350000000] alive
+[400000000] alive
+[450000000] alive
+[500000000] alive
+[550000000] alive
+[600000000] alive
+[650000000] alive
+[700000000] alive
+[750000000] alive
+[800000000] alive
+[850000000] alive
+[900000000] alive
+[950000000] alive
+[1000000000] alive
+[1050000000] alive
+[1100000000] alive
+[1150000000] alive
+[1200000000] alive
+[1250000000] alive
+[1300000000] alive
+[1350000000] alive
+[1400000000] alive
+[1450000000] alive
+[1500000000] alive
+[1550000000] alive
+[1600000000] alive
+[1650000000] alive
+[1700000000] alive
+[1750000000] alive
+[1800000000] alive
+[1842700000] 307 words loaded over SPI, RUN
+[1850000000] alive
+[1900000000] alive
+[1950000000] alive
+[2000000000] alive
+[2050000000] alive
+[2100000000] alive
+[2150000000] alive
+[2200000000] alive
+[2250000000] alive
+[2300000000] alive
+[2350000000] alive
+[2400000000] alive
+[2450000000] alive
+[2500000000] alive
+[2550000000] alive
+[2600000000] alive
+[2650000000] alive
+[2700000000] alive
+[2750000000] alive
+[2800000000] alive
+[2850000000] alive
+[2900000000] alive
+[2904283000] UART line: "PASS"
+PASS
+tb/tb_gls.sv:46: $finish called at 2904282841 (1ps)
+
+real	12m3.526s
+user	12m3.167s
+sys	0m0.382s
