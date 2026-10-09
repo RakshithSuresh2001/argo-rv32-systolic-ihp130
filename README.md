@@ -1,214 +1,108 @@
-# Arya OS
+# PicoRV32 SoC with Systolic Array Accelerator (IHP)
 
-A bare-metal x86 kernel built from scratch in C and x86 assembly — bootloader through preemptive multitasking, with no OS underneath.
+This repo has two physical implementations of the same SoC:
 
-Built as a systems-level counterpart to hardware/RTL work: a way to understand the hardware/software boundary from the software side, one layer at a time.
+| Folder | Process | Status |
+|---|---|---|
+| `ihp_cmos5l/` | IHP SG13CMOS5L (130 nm, 5 metal) | **Signoff clean with KLayout: DRC, density, antenna, LVS.** Bond pads placed. Planned for IHP fabrication. |
+| `ihp_pd/` + root RTL | IHP SG13G2 | Earlier version. Superseded by `ihp_cmos5l/`. |
 
----
-
-## Features
-
-- **Bootloader** — GRUB multiboot header, boots straight into 32-bit protected mode
-- **GDT** — flat memory model, kernel code/data segments
-- **IDT + ISR/IRQ stubs** — full 256-entry interrupt table, exception and hardware interrupt dispatch
-- **PIC remapping** — 8259 PIC remapped off the CPU's reserved exception vectors
-- **Keyboard driver** — IRQ1, scancode-to-ASCII translation, feeds a live shell
-- **Timer** — IRQ0 via the PIT, 100Hz tick, drives the scheduler
-- **Physical memory allocator** — bitmap-based, tracks 4KB pages from multiboot memory info
-- **Paging / virtual memory** — page directory + page table, identity-mapped, CR3/CR0 enabled
-- **Preemptive round-robin scheduler** — hand-written context switch (register save/restore via the stack), timer-interrupt-driven task switching
-- **Interactive shell** — `arya>` prompt, keyboard-driven, with built-in commands
+Everything below the SG13CMOS5L section describes the older SG13G2 version and is kept for history.
 
 ---
 
-## Shell commands
+## SG13CMOS5L implementation (`ihp_cmos5l/`)
 
-| Command | Description |
-|---|---|
-| `help` | List available commands |
-| `meminfo` | Show free physical memory (blocks and KB) |
-| `uptime` | Show timer ticks and elapsed seconds |
-| `about` | Print OS info |
-| `clear` | Clear the screen |
+### What's on the chip
 
----
+- **CPU:** PicoRV32, RV32IM, booted over SPI (`COMPRESSED_ISA=0`, `ENABLE_IRQ=0`)
+- **Accelerator:** 8x8 systolic array, memory-mapped, done flag polled by firmware
+- **Memory:** 2 x 4 KB `RM_IHPSG13_1P_1024x32_c2_bm_bist` SRAM macros (instruction and data)
+- **Peripherals:** SPI slave with boot loader, UART (115200 baud at 100 MHz)
+- **IO ring:** 6 inputs, 2 outputs (16 mA), 4 power pads, 4 corners, 70 x 70 um bond pads on all 12 pads
+- **Die:** 2.0 x 2.0 mm
 
-## Architecture
+### Results (run `c5l_v3`)
 
-```
-┌─────────────────────────────────────────────┐
-│                 boot.s                       │
-│   GRUB multiboot header → _start             │
-│   sets up stack, pushes multiboot args       │
-└───────────────────┬───────────────────────────┘
-                    │
-                    ▼
-┌─────────────────────────────────────────────┐
-│               kernel_main()                  │
-│                                               │
-│  gdt_install()   → flat GDT, segment reload  │
-│  idt_install()   → 256-entry IDT             │
-│  isr_install()   → exception/IRQ gates       │
-│  pic_remap()     → 8259 remap to 0x20/0x28   │
-│  keyboard_install() → IRQ1 handler           │
-│  timer_install() → IRQ0 @ 100Hz (PIT)        │
-│  pmm_init()      → bitmap physical allocator │
-│  paging_init()   → page dir/table, CR3/CR0   │
-│  shell_init()    → arya> prompt              │
-└───────────────────┬───────────────────────────┘
-                    │
-                    ▼
-        ┌───────────────────────┐
-        │   Interrupt-driven     │
-        │   event loop (hlt)     │
-        │                        │
-        │  Timer IRQ  → schedule()          │
-        │  Keyboard IRQ → shell_handle_char()│
-        └───────────────────────┘
-```
+| Check | Tool | Result |
+|---|---|---|
+| DRC | KLayout (PDK deck) | [V3_DRC] |
+| Density | KLayout | [V3_DENSITY] |
+| Antenna | KLayout | [V3_ANTENNA] (router reports [V3_ROUTE_ANT] nets) |
+| LVS | KLayout | [V3_LVS], pads and SRAMs black-boxed (see limits) |
+| Router DRC | OpenROAD | [V3_ROUTE_DRC] |
+| Gate-level sim | Icarus + SDF (typ, cell delays) | [V3_GLS] |
 
-### Preemptive scheduler
+Timing at 100 MHz (10 ns):
 
-Round-robin, timer-driven. Each task gets a 4KB stack; `task_create()` builds a fake initial stack frame so a brand-new task's first "resume" looks identical to a real context switch — landing in a small launcher stub (`task_launch`) that re-enables interrupts (`sti`) before jumping to the task's actual entry point.
+| Corner | Setup slack | Hold |
+|---|---|---|
+| nom_fast_1p32V_m40C | +5.23 ns | met |
+| nom_typ_1p20V_25C | +2.65 ns | met |
+| nom_slow_1p08V_125C | -1.66 ns | met |
 
-This matters because interrupt gates clear the CPU's interrupt flag on entry, and a raw `ret`-based context switch (as opposed to `iret`) doesn't restore it — without the launcher stub, a freshly-switched-to task would run forever with interrupts silently disabled, and the timer could never preempt it again.
+**Operating spec: 100 MHz typical, about 85 MHz at the slow corner (1.08 V, 125 C).** Hold is met at every corner, so the chip works at any clock up to these limits.
 
-```
-context_switch(&prev->esp, next->esp):
-    push ebp, ebx, esi, edi     ; save current task's registers
-    save esp into *prev_esp     ; bookmark current task
-    load esp from next_esp      ; switch stacks
-    pop edi, esi, ebx, ebp      ; restore next task's registers
-    ret                         ; resume next task
-```
+### Toolchain
 
----
+All open source. No Symbiotic Docker bouquet was used for this chip.
 
-## Project structure
+- LibreLane 3.0.14 (pip) **plus `librelane-3.0.14-local.patch`** (10 script changes)
+- IHP open PDK, SG13CMOS5L, dev checkout
+- OpenROAD, Yosys, KLayout 0.28, Icarus Verilog (oss-cad-suite)
+- Signoff is **KLayout only**. Magic has no SG13CMOS5L support.
 
-```
-arya-os/
-├── boot/
-│   ├── boot.s              # multiboot header, protected mode entry
-│   ├── gdt_flush.s         # loads GDT, reloads segment registers
-│   ├── idt_flush.s         # loads IDT
-│   ├── interrupt.s         # ISR/IRQ stubs (0-19 exceptions, 0-15 IRQs)
-│   ├── paging_asm.s        # loads CR3, sets paging bit in CR0
-│   ├── context_switch.s    # register save/restore, task_launch stub
-│   └── linker.ld           # kernel link script (loads at 1MB)
-├── include/
-│   ├── io.h                # inb/outb port I/O
-│   ├── gdt.h / idt.h       # GDT/IDT structures and install routines
-│   ├── isr.h               # interrupt dispatch, registers_t struct
-│   ├── pic.h                # 8259 PIC remap/EOI
-│   ├── keyboard.h / timer.h # driver interfaces
-│   ├── multiboot.h         # multiboot info struct
-│   ├── pmm.h / paging.h    # physical/virtual memory management
-│   ├── task.h               # TCB, scheduler interface
-│   └── shell.h              # shell interface
-├── src/
-│   ├── kernel.c             # kernel_main, VGA terminal, boot sequence
-│   ├── gdt.c / idt.c / isr.c
-│   ├── pic.c / keyboard.c / timer.c
-│   ├── pmm.c                # bitmap physical memory allocator
-│   ├── paging.c              # page directory/table management
-│   ├── task.c                # task creation, round-robin scheduler
-│   └── shell.c                # command parsing, built-in commands
-├── isodir/boot/grub/
-│   └── grub.cfg              # GRUB menu entry
-└── Makefile
-```
-
----
-
-## Building and running
-
-### Prerequisites (WSL2 Ubuntu)
+### How to reproduce
 
 ```bash
-sudo apt update
-sudo apt install -y build-essential bison flex libgmp3-dev libmpc-dev \
-    libmpfr-dev texinfo libisl-dev nasm qemu-system-x86 grub-pc-bin \
-    grub-common xorriso mtools gdb
+# 1. Apply the local LibreLane changes to a clean 3.0.14 install
+pip install librelane==3.0.14
+patch -p1 -d $(python3 -c "import librelane,os;print(os.path.dirname(os.path.dirname(librelane.__file__)))") < ihp_cmos5l/librelane-3.0.14-local.patch
+
+# 2. RTL regression (4 tests)
+cd ihp_cmos5l
+export CMOS5L_PDK_ROOT=<path to ihp-open-pdk checkout>   # contains ihp-sg13cmos5l/
+./run_regress.sh
+
+# 3. Full RTL to GDS with signoff (several hours, DRC is the long step)
+python3 -m librelane --manual-pdk --pdk-root $CMOS5L_PDK_ROOT --pdk ihp-sg13cmos5l \
+  --scl sg13cmos5l_stdcell --run-tag c5l_v3 config.yaml
+
+# 4. Gate-level simulation on the routed netlist
+RUN=runs/c5l_v3/final ./run_gls.sh hello sdfnoic
+RUN=runs/c5l_v3/final ./run_gls.sh sa_test sdfnoic
 ```
 
-An `i686-elf` cross-compiler (built from binutils 2.42 + gcc 13.2.0) is required — kernel code targets bare-metal x86, not the host's Linux toolchain. See build notes below if it's not already in `~/opt/cross`.
+Prebuilt results are in `ihp_cmos5l/results/` (gzipped GDS, final netlist, typical SDF, metrics).
 
-### Build and run
+### Local workarounds (and why)
 
-```bash
-make run
-```
+| Issue | Workaround | Files |
+|---|---|---|
+| PDK pad CDL has a pin-count error (2 lines), KLayout LVS aborts | Fixed copy of the pad CDL | `sg13cmos5l_io_fixed.cdl` |
+| 10 PDK cells (9 pad internals, 1 SRAM dummy) fail LVS against their own layout | Black-box those cells in a local copy of the LVS deck | `lvs_local/`, `mk_lvs_local.sh` |
+| SRAM macro LVS compare runs for hours without finishing | Black-box `RM_IHPSG13_*` and `RSC_IHPSG13_*` | `lvs_local/` |
+| Stock metal fill leaves Metal2/Metal3 under the 25% density minimum | Shaped top-up fill after the PDK filler (0.42 um spacing, 1.0 um min width) | `fill_local/` |
+| Decap cells in gap fill landed under Metal1 routes (985 DRC errors) | `DECAP_CELLS` set to plain fill cells | `config.yaml` |
+| PDK ships no bond pad cell; `bondpad.py` crashes writing the LEF | Generated GDS with the PDK script, shifted to a lower-left origin, LEF written by hand (`CLASS COVER`) | `bondpad/` |
+| `PAD_PLACE_IO_TERMINALS` plus bond pads gives two pins per port (DRT-0302) | Setting removed, bond pad carries the terminal | `config.yaml` |
+| Icarus crashes on SDF interconnect delays | GLS strips interconnect, cell delays only | `run_gls.sh` |
 
-Builds the kernel, links it, packages it into a GRUB-bootable ISO, and boots it in QEMU. You should see:
+### Known limits
 
-```
-GNU GRUB version 2.12
-> Arya OS
-```
+- **LVS coverage:** standard cells and top-level wiring only. Pads and SRAM macros are black-boxed. SRAM hookup is covered by a pin check against the RTL, gate-level simulation and a power-via count instead.
+- **Slow corner:** setup misses by 1.66 ns at 10 ns. There are also max-slew violations at the slow corner on a few high-fanout decode nets (`a21oi_2` drivers, 40 to 100 loads). These are fixable with a larger repair slew margin. That was not applied, because typical and fast pass and hold is met at all corners.
+- **Router vs KLayout antenna:** the router flags some nets that the KLayout antenna deck passes. KLayout is used for signoff.
+- **Fill rules:** the tech file lists `MFil_b` 0.6 um and `MFil_a1` 2.0 um, which the DRC deck does not check. The top-up fill uses 0.42 / 1.0 um. Pending confirmation from IHP.
+- **Timing extraction is pre-fill.**
 
-Booting into it shows:
+### Open questions for IHP
 
-```
-Hello, Arya OS!
-Free blocks: 00007ED9
-Starting preemptive tasks:
-arya>
-```
-
-Try `help`, `meminfo`, `uptime`, `about`, `clear`.
-
-### Cross-compiler build (one-time setup)
-
-```bash
-export PREFIX="$HOME/opt/cross"
-export TARGET=i686-elf
-export PATH="$PREFIX/bin:$PATH"
-
-mkdir -p ~/src && cd ~/src
-curl -O https://ftp.gnu.org/gnu/binutils/binutils-2.42.tar.gz
-curl -O https://ftp.gnu.org/gnu/gcc/gcc-13.2.0/gcc-13.2.0.tar.gz
-tar xf binutils-2.42.tar.gz && tar xf gcc-13.2.0.tar.gz
-
-mkdir build-binutils && cd build-binutils
-../binutils-2.42/configure --target=$TARGET --prefix="$PREFIX" --with-sysroot --disable-nls --disable-werror
-make -j$(nproc) && make install
-cd ..
-
-mkdir build-gcc && cd build-gcc
-../gcc-13.2.0/configure --target=$TARGET --prefix="$PREFIX" --disable-nls --enable-languages=c --without-headers
-make all-gcc -j$(nproc)
-make all-target-libgcc -j$(nproc)
-make install-gcc
-make install-target-libgcc
-```
-
-Add `export PATH="$HOME/opt/cross/bin:$PATH"` to `~/.bashrc`.
+1. Do they enforce `MFil_b` / `MFil_a1`, and do they want filled or unfilled GDS?
+2. Is the default DRC rule set enough, or the maximal deck?
+3. Is `RM_IHPSG13_1P_1024x32` allowed on a CMOS5L run?
+4. Is black-boxing the pads in LVS acceptable?
+5. Router antenna count or KLayout antenna check?
+6. Is `bondpad_70x70` at offset (5, -70) what they expect?
 
 ---
-
-## Why x86
-
-QEMU emulates x86 regardless of host architecture, and 32-bit protected mode has decades of documentation (OSDev wiki, Intel SDM) and mature tooling (GRUB multiboot, QEMU, GDB) that make it the most direct path for a bare-metal OS from scratch — no custom bootloader or thin hobbyist toolchain required. The underlying concepts (interrupt handling, paging, context switching) transfer directly to any architecture.
-
----
-
-## Known bugs found and fixed along the way
-
-- **Missing `boot/linker.ld` / `grub.cfg`** — heredoc writes silently failed at different points; caught by GRUB dropping to a rescue shell instead of loading the kernel.
-- **`context_switch` fake stack frame register order** — the pushed dummy register order didn't match `context_switch`'s pop order (`edi, esi, ebx, ebp`), so a new task's smuggled entry point landed in the wrong register (`esi` instead of `ebx`), causing a jump to address 0 and a triple fault.
-- **Interrupt flag not restored after context switch** — a raw `ret`-based switch (rather than `iret`) doesn't restore `EFLAGS`, so a freshly-switched task ran forever with interrupts disabled and could never be preempted again. Fixed with a `task_launch` stub that explicitly re-enables interrupts (`sti`) before running new tasks.
-- **cdecl argument order in `boot.s`** — multiboot magic/info pointer were pushed in the wrong order for `kernel_main(magic, mbi)`'s calling convention (args pushed right-to-left).
-
----
-
-## Scope
-
-Deliberately excludes: filesystem, disk I/O drivers, a graphical UI, process isolation (user/kernel mode separation), and networking. This was scoped as a focused systems-programming exercise covering boot, memory management, and concurrency — not a general-purpose OS.
-
----
-
-## Author
-
-Rakshith Suresh
-MS Electrical Engineering, USC Viterbi School of Engineering
