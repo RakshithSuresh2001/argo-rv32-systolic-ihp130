@@ -22,6 +22,10 @@ Everything below the SG13CMOS5L section describes the older SG13G2 version and i
 - **IO ring:** 6 inputs, 2 outputs (16 mA), 4 power pads, 4 corners, 70 x 70 um bond pads on all 12 pads
 - **Die:** 2.0 x 2.0 mm
 
+### GDS_Layout
+
+<img width="937" height="935" alt="Screenshot 2026-10-08 233015" src="https://github.com/user-attachments/assets/cfef6b40-0eba-4665-b653-cb47878b1e67" />
+
 ### Results (run `c5l_v3`)
 
 | Check | Tool | Result |
