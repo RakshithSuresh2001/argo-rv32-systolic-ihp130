@@ -1,0 +1,42 @@
+== OS
+Linux 6.6.87.2-microsoft-standard-WSL2 x86_64
+PRETTY_NAME="Ubuntu 24.04.1 LTS"
+== Python
+Python 3.12.3
+== LibreLane
+Version: 3.0.14
+Location: /home/zair/.local/lib/python3.12/site-packages
+== LibreLane local patch: 10 files changed (librelane-3.0.14-local.patch)
+== openroad: /usr/bin/openroad
+v2.0-17598-ga008522d8 
+== yosys: /home/zair/symbiotic-yosys/bin/yosys
+Yosys 0.49 (git sha1 427b5a251, g++ 13.3.0-6ubuntu2~24.04 -fPIC -O3)
+== klayout: /usr/bin/klayout
+KLayout 0.30.5
+== iverilog: /home/zair/oss-cad-suite/bin/iverilog
+Icarus Verilog version 14.0 (devel) (s20260301-476-g1a23d1ffd-dirty)
+== vvp: /home/zair/oss-cad-suite/bin/vvp
+Icarus Verilog runtime version 14.0 (devel) (s20260301-476-g1a23d1ffd-dirty)
+== verilator: /home/zair/oss-cad-suite/bin/verilator
+Verilator 5.053 devel rev v5.052-170-ge71d4e7fe (mod)
+== sta: /home/zair/symbiotic-yosys/bin/sta
+OpenSTA 2.7.0 ffabd65e39 Copyright (c) 2025, Parallax Software, Inc.
+== magic: not found
+== netgen: not found
+== riscv64-unknown-elf-gcc: /usr/bin/riscv64-unknown-elf-gcc
+riscv64-unknown-elf-gcc (13.2.0-11ubuntu1+12) 13.2.0
+== riscv32-unknown-elf-gcc: not found
+== oss-cad-suite
+/home/zair/oss-cad-suite
+/home/zair/oss-cad-suite-pyosys-yosys
+== Python packages
+ciel                   2.6.1
+click                  8.1.6
+cocotb                 1.9.1
+klayout                0.29.12
+numpy                  1.26.4
+PyYAML                 6.0.1
+volare                 0.20.6
+== IHP PDK
+https://github.com/IHP-GmbH/IHP-Open-PDK.git
+commit bf0790268f00fd9ebf5625d273a68f24e21bbb8f (Fri Oct 2 14:54:30 2026 +0000) Merge branch 'pr-1234' into dev
