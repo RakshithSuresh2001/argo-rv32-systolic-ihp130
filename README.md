@@ -100,13 +100,3 @@ Prebuilt results are in `ihp_cmos5l/results/` (gzipped GDS, final netlist, typic
 - **Fill rules:** the tech file lists `MFil_b` 0.6 um and `MFil_a1` 2.0 um, which the DRC deck does not check. The top-up fill uses 0.42 / 1.0 um. Pending confirmation from IHP.
 - **Timing extraction is pre-fill.**
 
-### Open questions for IHP
-
-1. Do they enforce `MFil_b` / `MFil_a1`, and do they want filled or unfilled GDS?
-2. Is the default DRC rule set enough, or the maximal deck?
-3. Is `RM_IHPSG13_1P_1024x32` allowed on a CMOS5L run?
-4. Is black-boxing the pads in LVS acceptable?
-5. Router antenna count or KLayout antenna check?
-6. Is `bondpad_70x70` at offset (5, -70) what they expect?
-
----
