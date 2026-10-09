@@ -100,3 +100,6 @@ Prebuilt results are in `ihp_cmos5l/results/` (gzipped GDS, final netlist, typic
 - **Fill rules:** the tech file lists `MFil_b` 0.6 um and `MFil_a1` 2.0 um, which the DRC deck does not check. The top-up fill uses 0.42 / 1.0 um. Pending confirmation from IHP.
 - **Timing extraction is pre-fill.**
 
+### Author
+
+Rakshith Suresh, MS Electrical Engineering, USC Viterbi School of Engineering
