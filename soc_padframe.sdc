@@ -1,4 +1,4 @@
-# soc_padframe.sdc - PicoRV32 + 8x8 systolic array SoC, IHP SG13G2
+# soc_padframe.sdc - PicoRV32 + 8x8 systolic array SoC, IHP SG13CMOS5L
 set clk_period 10.0
 create_clock -name clk -period $clk_period [get_ports clk_PAD]
 set_clock_uncertainty -setup 0.25 [get_clocks clk]
