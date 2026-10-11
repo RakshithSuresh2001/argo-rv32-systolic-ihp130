@@ -95,7 +95,7 @@ Prebuilt results are in `ihp_cmos5l/results/` (gzipped GDS, final netlist, typic
 ### Known limits
 
 - **LVS coverage:** standard cells and top-level wiring only. Pads and SRAM macros are black-boxed. SRAM hookup is covered by a pin check against the RTL, gate-level simulation and a power-via count instead.
-- **Slow corner:** setup misses by 1.66 ns at 10 ns. There are also max-slew violations at the slow corner on a few high-fanout decode nets (`a21oi_2` drivers, 40 to 100 loads). These are fixable with a larger repair slew margin. That was not applied, because typical and fast pass and hold is met at all corners.
+- **Slow corner:** setup misses by 1.66 ns at 10 ns. There are also max-slew violations at the slow corner on a few high-fanout decode nets (`a21oi_2` drivers, 40 to 100 loads): 876 slew violations at the slow corner and 171 max-fanout violations at all corners, with 0 max-cap. These are fixable with a larger repair slew margin. That was not applied, because typical and fast pass and hold is met at all corners.
 - **Router vs KLayout antenna:** the router flags some nets that the KLayout antenna deck passes. KLayout is used for signoff.
 - **Fill rules:** the tech file lists `MFil_b` 0.6 um and `MFil_a1` 2.0 um, which the DRC deck does not check. The top-up fill uses 0.42 / 1.0 um. Pending confirmation from IHP.
 - **Timing extraction is pre-fill.**
