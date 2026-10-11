@@ -1,7 +1,7 @@
 // =============================================================================
 // soc_top.sv - PicoRV32 SoC top-level: CPU, systolic array accelerator,
 // SPI slave, UART, and real IHP SRAM macros for instruction/data memory.
-// Target : IHP SG13G2, via LibreLane
+// Target : IHP SG13CMOS5L, via LibreLane
 // Clock  : 100 MHz (10 ns period)
 // Author : Rakshith Suresh
 // =============================================================================
@@ -24,10 +24,10 @@ module soc_top (
     input  wire clk,
     input  wire rst_n,          // active-low async reset
 
-    // UART (Phase 1 debug output)
+    // UART (TX used, RX pad present but unused)
     output wire uart_tx,
     input  wire uart_rx,
-    // SPI (Phase 3)
+    // SPI slave: boot loader and direct array access
     input  wire spi_clk,
     input  wire spi_cs_n,
     input  wire spi_mosi,
@@ -73,7 +73,7 @@ wire [63:0] spi_act_in_flat;
 wire        spi_array_rst_n;
 wire        spi_busy;
 
-// IRQ (16-bit, tied off in Phase 1)
+// IRQ: sa_done is wired to irq[0], but ENABLE_IRQ=0 so the CPU ignores it
 wire sa_done;
 wire [31:0] irq = {31'b0, sa_done};
 
@@ -91,9 +91,9 @@ picorv32 #(
     .TWO_STAGE_SHIFT    (1),   // 2-cycle shift instead of barrel shifter (saves area)
     .BARREL_SHIFTER     (0),   // disabled — consistent with TWO_STAGE_SHIFT
     .REGS_INIT_ZERO     (1),   // initialise all registers to 0 at reset
-    .STACKADDR          (32'h0001_7FFC), // sp = top of data SRAM
+    .STACKADDR          (32'h0001_7FFC), // unused: start.S sets sp from the linker script
     .PROGADDR_RESET     (32'h0000_0000), // PC starts at base of instruction SRAM
-    .PROGADDR_IRQ       (32'h0000_0010)  // IRQ handler at offset 0x10
+    .PROGADDR_IRQ       (32'h0000_0010)  // unused, ENABLE_IRQ=0
 ) u_cpu (
     .clk        (clk),
     .resetn     (cpu_resetn),
@@ -109,14 +109,14 @@ picorv32 #(
     .mem_la_addr  (),
     .mem_la_wdata (),
     .irq        (irq),
-    .eoi        ()             // end-of-interrupt — unused in Phase 1
+    .eoi        ()             // end-of-interrupt, unused (ENABLE_IRQ=0)
 );
 
 // ---------------------------------------------------------------------------
 // 3. Address decoder
 // ---------------------------------------------------------------------------
-// Combinational: asserts the correct chip-select based on mem_addr[31:16]
-// and mem_instr. mem_ready is registered (1-cycle SRAM latency).
+// Combinational: asserts the correct chip-select based on the upper address
+// bits and mem_instr. Each slave generates its own registered ready.
 // ---------------------------------------------------------------------------
 wire sel_isram;   // instruction SRAM
 wire sel_dsram;   // data SRAM
@@ -129,12 +129,11 @@ assign sel_dsram = mem_valid && ~mem_instr && (mem_addr[31:16] == 16'h0001);
 assign sel_uart  = mem_valid && !mem_instr && (mem_addr[31:16] == 16'h2000);
 
 // ---------------------------------------------------------------------------
-// 4. Instruction SRAM (64 KB = 16K × 32-bit words)
+// 4. Instruction SRAM (4 KB = 1024 x 32-bit words, IHP SRAM macro)
 // ---------------------------------------------------------------------------
-// Modelled as a synchronous single-port SRAM.
-// In OpenROAD flow, replace this with the ASAP7 SRAM macro.
-// mem_instr=1 implies read-only — mem_wstrb will always be 4'b0000 here,
-// so the write path is present but never exercised during correct operation.
+// RM_IHPSG13_1P_1024x32_c2_bm_bist behind sram_word_ctrl. Holds code, rodata
+// and .data, so the CPU reads and writes it. While the CPU is held in reset,
+// the SPI boot loader owns the port (mux below).
 // ---------------------------------------------------------------------------
 localparam ISRAM_DEPTH   = 1024;  // 4 KB / 4 bytes per word (real IHP SRAM macro)
 localparam ISRAM_ADDR_W  = 10;
@@ -159,7 +158,7 @@ sram_word_ctrl #(.ADDR_W(ISRAM_ADDR_W)) u_isram (
 );
 
 // ---------------------------------------------------------------------------
-// 5. Data SRAM (32 KB = 8K × 32-bit words)
+// 5. Data SRAM (4 KB = 1024 x 32-bit words, IHP SRAM macro)
 // ---------------------------------------------------------------------------
 localparam DSRAM_DEPTH   = 1024;  // 4 KB / 4 bytes per word (real IHP SRAM macro)
 localparam DSRAM_ADDR_W  = 10;
@@ -179,7 +178,7 @@ sram_word_ctrl #(.ADDR_W(DSRAM_ADDR_W)) u_dsram (
 );
 
 // ---------------------------------------------------------------------------
-// 6. UART (Phase 1 stub — enough to emit bytes, full driver in Phase 2)
+// 6. UART TX (8N1, 115200 baud)
 // ---------------------------------------------------------------------------
 wire        uart_tx_valid;
 wire [7:0]  uart_tx_data;
@@ -224,8 +223,8 @@ always_ff @(posedge clk)
 // ---------------------------------------------------------------------------
 // 7. mem_ready and mem_rdata mux
 // ---------------------------------------------------------------------------
-// All SRAMs have 1-cycle latency — ready comes one cycle after select.
-// UART also responds in 1 cycle (TX fires immediately, read returns status).
+// SRAMs return ready 2 cycles after valid (sram_word_ctrl). UART and the
+// array registers respond 1 cycle after select.
 // ---------------------------------------------------------------------------
 
 always_ff @(posedge clk or negedge rst_ns) begin
@@ -258,7 +257,7 @@ end
 
 // ---------------------------------------------------------------------------
 // 8. Unused output tie-off
-wire _unused_uart_rx = uart_rx; // RX unused in Phase 1, referenced to avoid unused-input lint
+wire _unused_uart_rx = uart_rx; // RX unused, referenced to avoid unused-input lint
 
 // ---------------------------------------------------------------------------
 // Systolic array + AXI-Lite wrapper
@@ -313,7 +312,7 @@ systolic_array u_sa (
 );
 
 // ---------------------------------------------------------------------------
-// 9. SPI Slave (Phase 3) — direct access to systolic array
+// 9. SPI slave: boot loader and direct access to the systolic array
 // ---------------------------------------------------------------------------
 
 spi_slave #(
