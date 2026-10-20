@@ -520,11 +520,6 @@ klayout -nn $CMOS5L_PDK_ROOT/ihp-sg13cmos5l/libs.tech/klayout/tech/sg13cmos5l.ly
 The full list is in `TOOL_VERSIONS.txt`.
 
 ---
-
-## Acknowledgments
-
-Built in collaboration with Symbiotic EDA. Uses the IHP open PDK, LibreLane, OpenROAD, Yosys, KLayout, Icarus Verilog and PicoRV32.
-
 ## Update: SRAM test block (October 2026)
 
 Argo now carries a 512x32 SRAM test block (byte write enables) generated with an open-source SRAM compiler, placed in the top-right corner of the core next to the two IHP 4 KB macros. Its purpose is to validate the compiler on IHP silicon, so it is fully detachable:
@@ -540,6 +535,12 @@ Regression: `./ci_regress.sh` builds the firmware and runs 12 tests (both `sram_
 
 Note: the generated SRAM macro views (GDS, LEF, SPICE, Liberty) are not included in this repo yet. `sram_test/sram_views.py` and `migrate_memgen.sh` rebuild them from the compiler output. The Liberty is a placeholder until characterized timing is available.
 
+---
+## Acknowledgments
+
+Built in collaboration with Symbiotic EDA. Uses the IHP open PDK, LibreLane, OpenROAD, Yosys, KLayout, Icarus Verilog and PicoRV32.
+
+---
 ## Author
 
 Rakshith Suresh, MS Electrical Engineering, USC Viterbi
