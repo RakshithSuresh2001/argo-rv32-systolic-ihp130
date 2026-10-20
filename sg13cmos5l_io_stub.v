@@ -46,4 +46,13 @@ module sg13cmos5l_IOPadIOVss (iovdd, iovss, vdd, vss);
     inout vss;
 endmodule
 
+module sg13cmos5l_IOPadAnalog (pad, padres, iovdd, iovss, vdd, vss);
+    inout  pad;
+    inout  padres;
+    inout  iovdd;
+    inout  iovss;
+    inout  vdd;
+    inout  vss;
+endmodule
+
 `default_nettype wire

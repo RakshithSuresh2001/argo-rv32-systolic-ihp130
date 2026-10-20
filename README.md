@@ -528,3 +528,18 @@ Built in collaboration with Symbiotic EDA. Uses the IHP open PDK, LibreLane, Ope
 ## Author
 
 Rakshith Suresh, MS Electrical Engineering, USC Viterbi
+
+## Update: SRAM test block (October 2026)
+
+Argo now carries a 512x32 SRAM test block (byte write enables) generated with an open-source SRAM compiler, placed in the top-right corner of the core next to the two IHP 4 KB macros. Its purpose is to validate the compiler on IHP silicon, so it is fully detachable:
+
+- Own supply, `VDD_SRAM`, through a dedicated analog pad, tied into a separate core ring and Metal4 straps by `sram_test/vddsram_strap.tcl`.
+- `sram_en` strap pad. When low, the macro clock is gated, its inputs are forced to 0 and its outputs are masked, so the rest of the chip runs normally even if the SRAM is dead.
+- Memory map: `0x3000_0000`-`0x3000_07FC` data, `0x3000_1000` status/ID register.
+- Firmware `firmware/sram_test.c` runs March C-, address-in-data and byte/halfword lane tests.
+
+The die is now 2.2 x 2.2 mm. Signoff (KLayout only): DRC 0, LVS 0, density 0, antenna 0, route DRC 0. Typical corner setup slack +2.69 ns. The slow corner improved from -1.66 ns to -1.47 ns WNS (TNS -211 ns to -18.7 ns) after registering the CPU reset that drives the register-file write enables.
+
+Regression: `./ci_regress.sh` builds the firmware and runs 12 tests (both `sram_en` settings plus forced-X fault cases). Set `CMOS5L_PDK_ROOT` to your IHP-Open-PDK checkout.
+
+Note: the generated SRAM macro views (GDS, LEF, SPICE, Liberty) are not included in this repo yet. `sram_test/sram_views.py` and `migrate_memgen.sh` rebuild them from the compiler output. The Liberty is a placeholder until characterized timing is available.

@@ -3,9 +3,10 @@ module tb_boot;
   reg clk = 0, rst_n = 0;
   reg spi_clk = 0, spi_cs_n = 1, spi_mosi = 0, uart_rx = 1;
   wire spi_miso, uart_tx;
+  reg sram_en = 0; initial void'($value$plusargs("sram_en=%d", sram_en));
   always #5 clk = ~clk;                       // 100 MHz
 
-  soc_top dut (.clk(clk), .rst_n(rst_n), .uart_tx(uart_tx), .uart_rx(uart_rx),
+  soc_top dut (.sram_en(sram_en), .clk(clk), .rst_n(rst_n), .uart_tx(uart_tx), .uart_rx(uart_rx),
                .spi_clk(spi_clk), .spi_cs_n(spi_cs_n), .spi_mosi(spi_mosi), .spi_miso(spi_miso));
 
   localparam SPI_HALF = 100;                  // 5 MHz SCK (20x oversampled)

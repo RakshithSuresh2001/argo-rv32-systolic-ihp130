@@ -78,6 +78,7 @@ if { $::env(PDN_MULTILAYER) == 1 } {
         -offset $::env(PDN_VOFFSET) \
         -spacing $::env(PDN_VSPACING) \
         -starts_with POWER \
+        -nets "$::env(VDD_NET) $::env(GND_NET)" \
         {*}$arg_list
 
     add_pdn_stripe \
@@ -88,11 +89,31 @@ if { $::env(PDN_MULTILAYER) == 1 } {
         -offset $::env(PDN_HOFFSET) \
         -spacing $::env(PDN_HSPACING) \
         -starts_with POWER \
+        -nets "$::env(VDD_NET) $::env(GND_NET)" \
         {*}$arg_list
 
     add_pdn_connect \
         -grid stdcell_grid \
         -layers "$::env(PDN_VERTICAL_LAYER) $::env(PDN_HORIZONTAL_LAYER)"
+
+    # VDD_SRAM: Metal4 straps only over the SRAM test macro column (x 1485..1835),
+    # midway between the VPWR/VGND stripes, extended to the VDD_SRAM core ring.
+    # 1.2 um wide keeps them under Metal4's 1.4 um two-cut rule.
+    add_pdn_stripe \
+        -grid stdcell_grid \
+        -layer $::env(PDN_VERTICAL_LAYER) \
+        -width 1.2 \
+        -pitch 50 \
+        -offset 1135 \
+        -number_of_straps 8 \
+        -nets VDD_SRAM \
+        -extend_to_core_ring
+
+    # Core Metal4 straps (VDD_SRAM, VGND) drop vias onto the SRAM test macro's
+    # Metal3 power rails. Only that macro has Metal3 power pins.
+    add_pdn_connect \
+        -grid stdcell_grid \
+        -layers "$::env(PDN_VERTICAL_LAYER) Metal3"
 } else {
 
     set arg_list [list]
@@ -118,6 +139,7 @@ if { $::env(PDN_MULTILAYER) == 1 } {
         -offset $::env(PDN_VOFFSET) \
         -spacing $::env(PDN_VSPACING) \
         -starts_with POWER \
+        -nets "$::env(VDD_NET) $::env(GND_NET)" \
         {*}$arg_list
 }
 
@@ -141,6 +163,10 @@ if { $::env(PDN_CORE_RING) == 1 } {
         set arg_list [list]
         append_if_flag arg_list PDN_CORE_RING_ALLOW_OUT_OF_DIE -allow_out_of_die
         append_if_flag arg_list PDN_CORE_RING_CONNECT_TO_PADS -connect_to_pads
+        # analog VDD_SRAM pad only has Metal2/Metal3 on its core side
+        if { $::env(PDN_CORE_RING_CONNECT_TO_PADS) } {
+            lappend arg_list -connect_to_pad_layers "Metal3 $::env(PDN_VERTICAL_LAYER) $::env(PDN_HORIZONTAL_LAYER)"
+        }
         append_if_equals arg_list PDN_EXTEND_TO "boundary" -extend_to_boundary
 
         set pdn_core_vertical_layer $::env(PDN_VERTICAL_LAYER)
@@ -185,6 +211,19 @@ if { $::env(PDN_CORE_RING) == 1 } {
     }
 }
 
+# SRAM test macro: no halo, so the core Metal4 straps cross it and land on
+# its Metal3 rails (connect rule in stdcell_grid above).
+define_pdn_grid \
+    -macro \
+    -instances i_soc_top.u_stest_macro \
+    -name stest_grid \
+    -starts_with POWER \
+    -halo "0 0"
+
+add_pdn_connect \
+    -grid stest_grid \
+    -layers "$::env(PDN_VERTICAL_LAYER) Metal3"
+
 define_pdn_grid \
     -macro \
     -default \
@@ -209,5 +248,16 @@ foreach io_vdd "IOVDD" io_vss "IOVSS" {
         set net [odb::dbNet_create [ord::get_db_block] $io_vss]
         $net setSpecial
         $net setSigType "GROUND"
+    }
+}
+
+# -----------------------------------------------------------------------------
+# VDD_SRAM pad -> ring strap. The analog pad's core-side pin is Metal3 only, which
+# -connect_to_pads does not reach, so draw it right after pdngen.
+if {[info commands _pdngen_orig] eq ""} {
+    rename pdngen _pdngen_orig
+    proc pdngen {args} {
+        _pdngen_orig {*}$args
+        source [file join $::env(DESIGN_DIR) sram_test vddsram_strap.tcl]
     }
 }

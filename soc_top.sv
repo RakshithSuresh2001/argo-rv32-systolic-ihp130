@@ -11,6 +11,8 @@
 //   0x0001_0000 - 0x0001_0FFF  Data SRAM        (4 KB, real IHP macro)
 //   0x1000_0000 - 0x1000_0FFF  Systolic array regs (AXI-Lite)
 //   0x2000_0000 - 0x2000_0FFF  UART (TX only; RX unused)
+//   0x3000_0000 - 0x3000_07FF  SRAM test block (C4M SP6T 512x32, detachable)
+//   0x3000_1000                SRAM test STATUS (bit0 = enabled by strap)
 //   SPI slave is NOT memory-mapped: it drives the array directly and
 //   loads ISRAM / releases CPU reset (cmds 0x05/0x06/0x07).
 //
@@ -31,7 +33,9 @@ module soc_top (
     input  wire spi_clk,
     input  wire spi_cs_n,
     input  wire spi_mosi,
-    output wire spi_miso
+    output wire spi_miso,
+    // SRAM test block strap: tie low on the board to detach the test SRAM
+    input  wire sram_en
 );
 
 // reset synchronizer: assert asynchronously, release on a clock edge
@@ -57,7 +61,12 @@ wire        spi_boot_we;
 wire [ 9:0] spi_boot_addr;
 wire [31:0] spi_boot_wdata;
 wire        spi_cpu_run;
-wire        cpu_resetn = rst_ns & spi_cpu_run;
+// registered: keeps rst_ns and the AND off the 1024-flop regfile write-enable path
+logic cpu_resetn_q;
+always_ff @(posedge clk or negedge rst_ns)
+    if (!rst_ns) cpu_resetn_q <= 1'b0;
+    else         cpu_resetn_q <= spi_cpu_run;
+wire        cpu_resetn = cpu_resetn_q;
 
 // Array / SPI nets (declared early: used by muxes before instances)
 wire        sa_weight_load;
@@ -122,11 +131,15 @@ wire sel_isram;   // instruction SRAM
 wire sel_dsram;   // data SRAM
 wire sel_uart;    // UART peripheral
 wire sel_sa;
+wire sel_stest;   // SRAM test block
+wire sel_td;      // reserved (0x4000_0000)
 
 assign sel_sa = mem_valid && !mem_instr && (mem_addr[31:8] == 24'h100000);
 assign sel_isram = mem_valid && (mem_addr[31:16] == 16'h0000);
 assign sel_dsram = mem_valid && ~mem_instr && (mem_addr[31:16] == 16'h0001);
 assign sel_uart  = mem_valid && !mem_instr && (mem_addr[31:16] == 16'h2000);
+assign sel_stest = mem_valid && !mem_instr && (mem_addr[31:16] == 16'h3000);
+assign sel_td    = mem_valid && !mem_instr && (mem_addr[31:16] == 16'h4000);
 
 // ---------------------------------------------------------------------------
 // 4. Instruction SRAM (4 KB = 1024 x 32-bit words, IHP SRAM macro)
@@ -221,6 +234,46 @@ always_ff @(posedge clk)
     uart_rdata <= {31'b0, uart_tx_ready};
 
 // ---------------------------------------------------------------------------
+// 6b. SRAM test block (Chips4Makers SP6TSRAM_512x32_4we, own VDD_SRAM supply)
+// ---------------------------------------------------------------------------
+// Detachable: with the sram_en strap low the macro clock is gated off, all
+// macro inputs are held at 0, its outputs are masked, and the region still
+// answers (reads 0), so a dead or unpowered SRAM cannot hang or corrupt Argo.
+// ---------------------------------------------------------------------------
+wire        stest_ready;
+wire [31:0] stest_rdata;
+wire        stest_m_clk;
+wire [ 8:0] stest_m_a;
+wire [31:0] stest_m_d;
+wire [ 3:0] stest_m_we;
+wire [31:0] stest_m_q;
+
+sram_test_wrap u_stest (
+    .clk         (clk),
+    .rst_n       (rst_ns),
+    .sram_en_pad (sram_en),
+    .sel         (sel_stest),
+    .addr        (mem_addr[12:0]),
+    .wdata       (mem_wdata),
+    .wstrb       (mem_wstrb),
+    .ready       (stest_ready),
+    .rdata       (stest_rdata),
+    .m_clk       (stest_m_clk),
+    .m_a         (stest_m_a),
+    .m_d         (stest_m_d),
+    .m_we        (stest_m_we),
+    .m_q         (stest_m_q)
+);
+
+SP6TSRAM_512x32_4we u_stest_macro (
+    .clk (stest_m_clk),
+    .a   (stest_m_a),
+    .d   (stest_m_d),
+    .we  (stest_m_we),
+    .q   (stest_m_q)
+);
+
+// ---------------------------------------------------------------------------
 // 7. mem_ready and mem_rdata mux
 // ---------------------------------------------------------------------------
 // SRAMs return ready 2 cycles after valid (sram_word_ctrl). UART and the
@@ -243,7 +296,7 @@ end
 // macro access). uart/systolic-array keep the original 1-cycle-registered
 // assumption (unchanged, out of scope for this integration).
 always_comb begin
-    mem_ready = isram_ready | dsram_ready | sel_uart_r | sel_sa_r;
+    mem_ready = isram_ready | dsram_ready | sel_uart_r | sel_sa_r | stest_ready;
 end
 
 // mem_rdata mux: output whichever slave responded
@@ -253,6 +306,7 @@ always_comb begin
     else if (dsram_ready) mem_rdata = dsram_rdata;
     else if (sel_uart_r)  mem_rdata = uart_rdata;
     else if (sel_sa_r)    mem_rdata = sa_rdata;
+    else if (stest_ready) mem_rdata = stest_rdata;
 end
 
 // ---------------------------------------------------------------------------

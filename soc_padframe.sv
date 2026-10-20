@@ -6,17 +6,20 @@ module soc_padframe (
     inout wire IOVSS,
     inout wire VPWR,
     inout wire VGND,
+    inout wire VDD_SRAM,      // 1.2 V supply for the SRAM test macro only
     `endif
     inout wire       clk_PAD,
     inout wire       rst_n_PAD,
     inout wire [3:0] input_PAD,   // 0=uart_rx 1=spi_clk 2=spi_cs_n 3=spi_mosi
-    inout wire [1:0] output_PAD   // 0=uart_tx 1=spi_miso
+    inout wire [1:0] output_PAD,  // 0=uart_tx 1=spi_miso
+    inout wire       sram_en_PAD  // SRAM test strap, tie low to detach
 );
 
     logic       clk_PAD2CORE;
     logic       rst_n_PAD2CORE;
     logic [3:0] input_PAD2CORE;
     logic [1:0] output_CORE2PAD;
+    logic       sram_en_PAD2CORE;
 
     (* keep *) sg13cmos5l_IOPadVdd   vdd_pad   (`ifdef USE_POWER_PINS .iovdd(IOVDD), .iovss(IOVSS), .vdd(VPWR), .vss(VGND) `endif );
     (* keep *) sg13cmos5l_IOPadVss   vss_pad   (`ifdef USE_POWER_PINS .iovdd(IOVDD), .iovss(IOVSS), .vdd(VPWR), .vss(VGND) `endif );
@@ -31,6 +34,18 @@ module soc_padframe (
     sg13cmos5l_IOPadIn rst_n_pad (
         `ifdef USE_POWER_PINS .iovdd(IOVDD), .iovss(IOVSS), .vdd(VPWR), .vss(VGND), `endif
         .p2c(rst_n_PAD2CORE), .pad(rst_n_PAD)
+    );
+
+    sg13cmos5l_IOPadIn sram_en_pad (
+        `ifdef USE_POWER_PINS .iovdd(IOVDD), .iovss(IOVSS), .vdd(VPWR), .vss(VGND), `endif
+        .p2c(sram_en_PAD2CORE), .pad(sram_en_PAD)
+    );
+
+    // VDD_SRAM: analog pad, so it does NOT tie into the pad ring's VDD rail.
+    // PDN connects this pad's core-side pin to the macro's own power ring.
+    (* keep *) sg13cmos5l_IOPadAnalog vdd_sram_pad (
+        `ifdef USE_POWER_PINS .iovdd(IOVDD), .iovss(IOVSS), .vdd(VPWR), .vss(VGND), .pad(VDD_SRAM), `endif
+        .padres()
     );
 
     generate
@@ -59,7 +74,8 @@ module soc_padframe (
         .spi_cs_n (input_PAD2CORE[2]),
         .spi_mosi (input_PAD2CORE[3]),
         .uart_tx  (output_CORE2PAD[0]),
-        .spi_miso (output_CORE2PAD[1])
+        .spi_miso (output_CORE2PAD[1]),
+        .sram_en  (sram_en_PAD2CORE)
     );
 
 endmodule
