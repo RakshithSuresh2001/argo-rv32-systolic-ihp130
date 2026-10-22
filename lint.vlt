@@ -1,0 +1,10 @@
+`verilator_config
+// Known, reviewed lint waivers. Anything else in Argo's own RTL fails CI.
+lint_off -file "*picorv32.v"                                              // third-party CPU core
+lint_off -file "*_stub.v"                                                 // blackbox macro stubs, outputs undriven by design
+lint_off -rule PINMISSING      -file "*soc_top.sv" -match "*missing pin*"   // unused PicoRV32 trap/pcpi/trace ports, ENABLE_PCPI=0
+lint_off -rule PINCONNECTEMPTY -file "*soc_top.sv"                       // intentional .x() on unused outputs
+lint_off -rule UNUSEDPARAM     -file "*soc_top.sv"                       // ISRAM/DSRAM depth localparams kept as documentation
+lint_off -rule SYNCASYNCNET    -file "*soc_top.sv" -match "*rst*"       // reset synchronizer and registered array reset mux, both clean flop outputs
+lint_off -rule LATCH           -file "*sram_test_wrap.sv" -match "*en_l*" // behavioral clock gate, synthesis uses sg13cmos5l_lgcp_1
+lint_off -rule WIDTHEXPAND     -file "*uart_tx.sv"                       // baud counter compared to a wider constant
