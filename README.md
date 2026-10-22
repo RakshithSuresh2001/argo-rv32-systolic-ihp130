@@ -529,7 +529,7 @@ Argo now carries a 512x32 SRAM test block (byte write enables) generated with an
 - Memory map: `0x3000_0000`-`0x3000_07FC` data, `0x3000_1000` status/ID register.
 - Firmware `firmware/sram_test.c` runs March C-, address-in-data and byte/halfword lane tests.
 
-The die is now 2.2 x 2.2 mm. Signoff (KLayout only): DRC 0, LVS 0, density 0, antenna 0, route DRC 0. Typical corner setup slack +2.69 ns. The slow corner improved from -1.66 ns to -1.47 ns WNS (TNS -211 ns to -18.7 ns) after registering the CPU reset that drives the register-file write enables.
+The die is now 2.2 x 2.2 mm with 16 pads, including a second VDD/VSS pair for power delivery. See [docs/DATASHEET.md](docs/DATASHEET.md) and [docs/BRINGUP.md](docs/BRINGUP.md). Signoff (KLayout only): DRC 0, LVS 0, density 0, antenna 0, route DRC 0. Typical corner setup slack +2.35 ns. Registering the CPU reset that drives the register-file write enables cut slow-corner TNS from -211 ns to -18.7 ns; with the second supply pad pair the slow corner sits at -2.07 ns WNS (about 83 MHz worst case).
 
 Regression: `./ci_regress.sh` builds the firmware and runs 12 tests (both `sram_en` settings plus forced-X fault cases). Set `CMOS5L_PDK_ROOT` to your IHP-Open-PDK checkout.
 
