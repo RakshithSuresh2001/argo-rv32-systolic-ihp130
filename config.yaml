@@ -110,6 +110,8 @@ PAD_NORTH:
 PAD_WEST:
 - g_inputs\[0\].input_pad
 - g_outputs\[0\].output_pad
+- vdd_pad2
+- vss_pad2
 - sram_en_pad
 PAD_EAST:
 - g_inputs\[1\].input_pad

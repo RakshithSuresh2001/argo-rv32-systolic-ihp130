@@ -23,6 +23,9 @@ module soc_padframe (
 
     (* keep *) sg13cmos5l_IOPadVdd   vdd_pad   (`ifdef USE_POWER_PINS .iovdd(IOVDD), .iovss(IOVSS), .vdd(VPWR), .vss(VGND) `endif );
     (* keep *) sg13cmos5l_IOPadVss   vss_pad   (`ifdef USE_POWER_PINS .iovdd(IOVDD), .iovss(IOVSS), .vdd(VPWR), .vss(VGND) `endif );
+    // second core supply pair on the west side: halves supply resistance and bond-wire inductance
+    (* keep *) sg13cmos5l_IOPadVdd   vdd_pad2  (`ifdef USE_POWER_PINS .iovdd(IOVDD), .iovss(IOVSS), .vdd(VPWR), .vss(VGND) `endif );
+    (* keep *) sg13cmos5l_IOPadVss   vss_pad2  (`ifdef USE_POWER_PINS .iovdd(IOVDD), .iovss(IOVSS), .vdd(VPWR), .vss(VGND) `endif );
     (* keep *) sg13cmos5l_IOPadIOVdd iovdd_pad (`ifdef USE_POWER_PINS .iovdd(IOVDD), .iovss(IOVSS), .vdd(VPWR), .vss(VGND) `endif );
     (* keep *) sg13cmos5l_IOPadIOVss iovss_pad (`ifdef USE_POWER_PINS .iovdd(IOVDD), .iovss(IOVSS), .vdd(VPWR), .vss(VGND) `endif );
 
