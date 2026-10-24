@@ -379,6 +379,7 @@ Every test checks itself and prints PASS or FAIL. None of them need anyone to lo
 | `hello` (GLS) | Gate level | Same as above, on the routed v2.2 netlist |
 | `sa_test` (GLS) | Gate level | Same as above, including the full 307-word SPI boot, about 2.9 ms of simulated time |
 | `post` (GLS) | Gate level | Both strap settings on the routed netlist, about 16 ms and 13 ms of simulated time. `WAIVERS.md` (W5) explains how the CPU's non-reset flops are initialized |
+| `post` (GLS, SDF) | Gate level | Same, with typical-corner SDF cell delays. Results match the zero-delay runs cycle for cycle |
 
 The RTL tests run against IHP's own behavioral SRAM models, not an idealized memory, so the macro's timing contract is exercised too. Gate-level simulation uses the final netlist with the PDK's standard cell, IO and SRAM Verilog models.
 
