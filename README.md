@@ -6,7 +6,7 @@ Argo pairs a PicoRV32 core with a weight-stationary matrix engine, two 4 KB IHP 
 
 ![Argo layout](docs/argo_layout.png)
 
-*Full chip, 2.0 x 2.0 mm. The two yellow blocks are the instruction and data SRAMs. The pad ring and bond pads run around the edge, and the seal ring sits at the outer border.*
+*Full chip, 2.2 x 2.2 mm. The two yellow blocks are the instruction and data SRAMs. The pad ring and bond pads run around the edge, and the seal ring sits at the outer border.*
 
 ---
 
