@@ -10,7 +10,7 @@
 //
 // Port list and widths taken directly from the vendor's own
 // RM_IHPSG13_1P_1024x32_c2_bm_bist.v (IHP-Open-PDK, Apache 2.0).
-// By: Rakshith Suresh
+// Author: Rakshith Suresh
 // USC Viterbi
 // =============================================================================
 module RM_IHPSG13_1P_1024x32_c2_bm_bist (
