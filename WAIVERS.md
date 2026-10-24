@@ -57,11 +57,14 @@ Each waiver lists what, why, scope and owner. Anything outside the scope reopens
 - **Evidence:** hello, sa_test, post (sram_en=1) and post (sram_en=0) pass on `sram_full6`.
 - **Owner:** Rakshith Suresh, 2026-10-23.
 
-## W6. IR drop not signed off with real activity
+## W6. Static IR drop (closed)
 
-- **What:** `irdrop_check.sh` ran with default activity and ideal top-metal sources, so its
-  drop number is not meaningful.
-- **Why:** PSM-0040 connectivity is clean (0 critical disconnected pins) and
-  power_grid_violation = 0 on VPWR, VGND and VDD_SRAM. The core has two VDD/VSS pad pairs.
-- **Scope:** open item. Replace with a run using real switching activity before the next tapeout.
+- **Result:** `./irdrop_check.sh sram_full6 0.2`, typical corner, 0.2 toggle rate on every net,
+  67 mW total. Sources placed only where the supply pads meet the core ring.
+  VPWR worst 28.1 mV (2.3 %), VGND worst 35.6 mV (3.0 %), VDD_SRAM 0.24 mV. All shapes connected
+  (PSM-0040) and power_grid_violation = 0.
+- **Why it is acceptable:** each rail is under the 5 % (60 mV) budget. Even the sum of both worst
+  cases (63.7 mV) leaves the cells at about 1.136 V from a 1.2 V supply, above the 1.08 V the slow
+  corner is timed at.
+- **Scope:** board supply at least 1.15 V at the VDD pins. Rerun if activity or power rises.
 - **Owner:** Rakshith Suresh, 2026-10-23.

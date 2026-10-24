@@ -35,7 +35,6 @@ Revision: v2 (October 2026), signoff tag `argo-v2-sram-signoff`.
 | `IOVSS` | South | Ground | IO ground |
 | `VDD_SRAM` | South | Power, analog pad | SRAM test block supply, 1.2 V. Can be left off when `sram_en` is low |
 
-Package: QFN32 (5 x 5 mm). The pad-to-lead assignment is not final yet and will be added here.
 
 ## Memory map
 
@@ -109,8 +108,8 @@ SPI mode 0 (CPOL 0, CPHA 0), MSB first, one command per chip-select frame, excep
 | Parameter | Value |
 |---|---|
 | Clock target | 100 MHz (10 ns) |
-| Typical corner (1.20 V, 25 C) | Setup slack +2.35 ns at 10 ns |
-| Slow corner (1.08 V, 125 C) | Setup WNS -2.07 ns, so about 83 MHz worst case |
+| Typical corner (1.20 V, 25 C) | Setup slack +2.82 ns at 10 ns |
+| Slow corner (1.08 V, 125 C) | Setup WNS -1.38 ns, so about 88 MHz worst case |
 | Hold | Met at all corners |
 | Reset | `rst_n` asynchronous assert, synchronized release |
 
@@ -124,3 +123,38 @@ SPI mode 0 (CPOL 0, CPHA 0), MSB first, one command per chip-select frame, excep
 | Macros | 2 x IHP 4 KB SRAM, 1 x 2 KB test SRAM |
 | Bond pads | 70 x 70 um on TopMetal1 |
 | Signoff | KLayout DRC, density, antenna and LVS clean |
+
+## Package pinout (QFN32, 5 x 5 mm, draft)
+
+Draft bond plan, pending the assembler's bonding rules. It assumes the die sits in the package
+with its north edge toward package pins 25 to 32 (no rotation) and standard JEDEC numbering,
+counterclockwise from pin 1 at the top of the left side, top view. Each die pad goes to the
+nearest lead on the same side, in order, so no bond wires cross. The die is 2.2 x 2.2 mm, so
+radial wire length is about 1 mm, and the largest sideways offset is about 0.7 mm.
+
+| Pin | Signal | Die pad | Pin | Signal | Die pad |
+|---|---|---|---|---|---|
+| 1 | NC | | 17 | NC | |
+| 2 | `sram_en` | West | 18 | NC | |
+| 3 | VSS | West (`vss_pad2`) | 19 | `spi_clk` | East |
+| 4 | VDD | West (`vdd_pad2`) | 20 | `spi_cs_n` | East |
+| 5 | `uart_tx` | West | 21 | `spi_mosi` | East |
+| 6 | `uart_rx` | West | 22 | `spi_miso` | East |
+| 7 | NC | | 23 | NC | |
+| 8 | NC | | 24 | NC | |
+| 9 | NC | | 25 | NC | |
+| 10 | NC | | 26 | NC | |
+| 11 | NC | | 27 | VSS | North (`vss_pad`) |
+| 12 | IOVDD | South | 28 | VDD | North (`vdd_pad`) |
+| 13 | IOVSS | South | 29 | `rst_n` | North |
+| 14 | VDD_SRAM | South | 30 | `clk` | North |
+| 15 | NC | | 31 | NC | |
+| 16 | NC | | 32 | NC | |
+| EP | Exposed pad | Not bonded. Connect to ground on the PCB for heat and mechanical support | | | |
+
+Board notes:
+- Pins 3 and 27 (VSS) and pins 4 and 28 (VDD) are the same nets on the die. Connect both pairs
+  on the PCB, with a 100 nF capacitor close to each pair.
+- VDD_SRAM (pin 14) feeds only the SRAM test block. Leave it on its own supply, or tie it to VDD
+  if the SRAM block isn't being tested. Strap `sram_en` (pin 2) low when VDD_SRAM is off.
+- NC pins have no bond wire. Leave them unconnected or ground them.
