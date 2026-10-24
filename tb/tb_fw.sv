@@ -28,6 +28,7 @@ module tb_fw;
   reg [8*256-1:0] hexfile;
   reg [8*64-1:0] expect_s = 0, line = 0;
   integer nwords = 0, k, tmo;
+  reg loaded = 0;
 
   reg [7:0] rx; integer b;
   initial forever begin
@@ -50,6 +51,7 @@ module tb_fw;
     #200 rst_n = 1;
     #500;
     for (k = 0; k < nwords; k = k + 1) isram_write(k[9:0], prog[k]);
+    loaded = 1;
     $display("[%0t] %0d words loaded over SPI, RUN", $time, nwords);
     spi_frame_begin; spi_byte(8'h06); spi_frame_end;
   end

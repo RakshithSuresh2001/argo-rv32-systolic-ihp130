@@ -7,3 +7,4 @@ tb/tb_gls.sv
 firmware/*.elf
 firmware/*.bin
 __pycache__/
+sram_test/SP6TSRAM_512x32_4we.cdl

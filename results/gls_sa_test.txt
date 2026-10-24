@@ -1,7 +1,7 @@
-SDF: runs/c5l_v3/final/sdf/nom_typ_1p20V_25C/soc_padframe__nom_typ_1p20V_25C.sdf
-compiling (sdfnoic) ...
+nohup: ignoring input
+compiling runs/sram_full6/final/nl/soc_padframe.nl.v (zero) ...
 compile rc=0, error lines: 0
-running sa_test, expecting "PASS", timeout 20000 us ...
+running sa_test (sram_en=1), expecting "PASS", timeout 8000 us ...
 [50000000] alive
 [100000000] alive
 [150000000] alive
@@ -61,10 +61,10 @@ running sa_test, expecting "PASS", timeout 20000 us ...
 [2800000000] alive
 [2850000000] alive
 [2900000000] alive
-[2904283000] UART line: "PASS"
+[2904290000] UART line: "PASS"
 PASS
-tb/tb_gls.sv:46: $finish called at 2904282841 (1ps)
+tb/tb_gls_28354.sv:48: $finish called at 2904290281 (1ps)
 
-real	12m3.526s
-user	12m3.167s
-sys	0m0.382s
+real	4m48.534s
+user	4m48.439s
+sys	0m0.089s

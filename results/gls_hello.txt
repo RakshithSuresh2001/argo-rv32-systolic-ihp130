@@ -1,7 +1,8 @@
-SDF: runs/c5l_v3/final/sdf/nom_typ_1p20V_25C/soc_padframe__nom_typ_1p20V_25C.sdf
-compiling (sdfnoic) ...
+nohup: ignoring input
+compiling runs/sram_full6/final/nl/soc_padframe.nl.v (zero) ...
 compile rc=0, error lines: 0
-running hello, expecting "HI", timeout 20000 us ...
+/usr/lib/gcc/riscv64-unknown-elf/13.2.0/../../../riscv64-unknown-elf/bin/ld: warning: hello.elf has a LOAD segment with RWX permissions
+running hello (sram_en=1), expecting "HI", timeout 6000 us ...
 [50000000] alive
 [100000000] alive
 [150000000] alive
@@ -11,10 +12,10 @@ running hello, expecting "HI", timeout 20000 us ...
 [300000000] alive
 [350000000] alive
 [400000000] alive
-[430333000] UART line: "HI"
+[430340000] UART line: "HI"
 PASS
-tb/tb_gls.sv:46: $finish called at 430332841 (1ps)
+tb/tb_gls_20011.sv:47: $finish called at 430340281 (1ps)
 
-real	0m0.000s
-user	5m34.674s
-sys	0m0.282s
+real	0m50.709s
+user	0m50.502s
+sys	0m0.100s

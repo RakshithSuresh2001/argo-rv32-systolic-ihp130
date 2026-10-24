@@ -1,0 +1,11 @@
+klayout__drc_error__count                0
+design__lvs_error__count                 0
+route__drc_errors                        0
+60-klayout-antenna                       0
+64-klayout-density                       0
+66-klayout-drc                           0
+setup WNS nom_fast_1p32V_m40C          5.2328622915958665
+setup WNS nom_typ_1p20V_25C            2.8238807647083184
+setup WNS nom_slow_1p08V_125C          -1.376844455196338
+hold WNS (all corners)                   0.034999115707335875
+SIGNOFF PASS
