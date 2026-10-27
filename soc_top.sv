@@ -9,7 +9,7 @@
 // Memory map
 //   0x0000_0000 - 0x0000_0FFF  Instruction SRAM (4 KB, real IHP macro)
 //   0x0001_0000 - 0x0001_0FFF  Data SRAM        (4 KB, real IHP macro)
-//   0x1000_0000 - 0x1000_0FFF  Systolic array regs (AXI-Lite)
+//   0x1000_0000 - 0x1000_0FFF  Systolic array registers
 //   0x2000_0000 - 0x2000_0FFF  UART (TX only; RX unused)
 //   0x3000_0000 - 0x3000_07FF  SRAM test block (C4M SP6T 512x32, detachable)
 //   0x3000_1000                SRAM test STATUS (bit0 = enabled by strap)
@@ -91,14 +91,14 @@ wire [31:0] irq = {31'b0, sa_done};
 // ---------------------------------------------------------------------------
 picorv32 #(
     .ENABLE_MUL         (1),   // hardware multiply (M extension)
-    .ENABLE_DIV         (0),   // skip divide — saves area, use SW div if needed
+    .ENABLE_DIV         (0),   // no divider, saves area
     .ENABLE_FAST_MUL    (0),   // multi-cycle multiply: the fast one misses 100 MHz in the slow corner
     .COMPRESSED_ISA  (0),   // RVC 16-bit instructions (C extension)
-    .ENABLE_IRQ         (0),   // IRQ unused by firmware; removed for timing
+    .ENABLE_IRQ         (0),   // no interrupts, saves area and timing
     .ENABLE_IRQ_QREGS   (0),   // disable IRQ registers in regfile (saves 4 regs)
     .ENABLE_COUNTERS    (1),   // mcycle / minstret CSRs for profiling
     .TWO_STAGE_SHIFT    (1),   // 2-cycle shift instead of barrel shifter (saves area)
-    .BARREL_SHIFTER     (0),   // disabled — consistent with TWO_STAGE_SHIFT
+    .BARREL_SHIFTER     (0),   // off, TWO_STAGE_SHIFT is used
     .REGS_INIT_ZERO     (1),   // initialise all registers to 0 at reset
     .STACKADDR          (32'h0001_7FFC), // unused: start.S sets sp from the linker script
     .PROGADDR_RESET     (32'h0000_0000), // PC starts at base of instruction SRAM
@@ -113,7 +113,7 @@ picorv32 #(
     .mem_wdata  (mem_wdata),
     .mem_wstrb  (mem_wstrb),
     .mem_rdata  (mem_rdata),
-    .mem_la_read  (),          // look-ahead signals — unused
+    .mem_la_read  (),          // look-ahead signals, unused
     .mem_la_write (),
     .mem_la_addr  (),
     .mem_la_wdata (),
@@ -132,7 +132,7 @@ wire sel_dsram;   // data SRAM
 wire sel_uart;    // UART peripheral
 wire sel_sa;
 wire sel_stest;   // SRAM test block
-wire sel_td;      // reserved (0x4000_0000)
+wire sel_td;      // reserved for the demonstrator block (0x4000_0000)
 
 assign sel_sa = mem_valid && !mem_instr && (mem_addr[31:8] == 24'h100000);
 assign sel_isram = mem_valid && (mem_addr[31:16] == 16'h0000);
@@ -212,7 +212,7 @@ uart_tx #(
 
 // CPU writes byte to 0x2000_0000 → UART TX
 // CPU reads  0x2000_0000 → bit[0] = tx_ready (not full)
-// Registered write pulse — one cycle wide, aligned with SRAM ready timing
+// Registered write pulse, one cycle wide
 reg sel_uart_r, sel_sa_r;
 reg uart_tx_valid_r;
 reg [7:0] uart_tx_data_r;
@@ -292,9 +292,8 @@ always_ff @(posedge clk or negedge rst_ns) begin
     end
 end
 
-// mem_ready: isram/dsram use sram_word_ctrl's real ready (multi-cycle, real
-// macro access). uart/systolic-array keep the original 1-cycle-registered
-// assumption (unchanged, out of scope for this integration).
+// mem_ready: the SRAMs answer through sram_word_ctrl (multi-cycle), the UART
+// and the array one cycle after select.
 always_comb begin
     mem_ready = isram_ready | dsram_ready | sel_uart_r | sel_sa_r | stest_ready;
 end

@@ -2,7 +2,8 @@
 `timescale 1ns/1ps
 
 // =============================================================================
-// axilite_slave.sv — AXI-Lite slave for 8x8 weight-stationary systolic array
+// axilite_slave.sv: register interface for the systolic array on the PicoRV32
+// native memory bus (named after the AXI-Lite register map it started from)
 // Matches real systolic_array.sv port interface (flattened, pipeline style)
 // Base address : 0x1000_0000
 // =============================================================================
@@ -111,7 +112,7 @@ always_ff @(posedge clk or negedge rst_n) begin
 end
 
 // ---------------------------------------------------------------------------
-// mem_ready — 1 cycle after valid select
+// mem_ready: 1 cycle after select
 // ---------------------------------------------------------------------------
 always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) mem_ready <= 1'b0;

@@ -1,5 +1,5 @@
 // =============================================================================
-// systolic_array.sv — 8x8 Weight-Stationary Systolic Array (Yosys-compatible)
+// systolic_array.sv: 8x8 weight-stationary systolic array (Yosys-compatible)
 // Author: Rakshith Suresh
 // -----------------------------------------------------------------------------
 // Flattened port declarations for Yosys compatibility.
@@ -29,7 +29,7 @@ module systolic_array #(
 
     // Flattened partial sum outputs: COLS * ACC_W bits
     output reg  [COLS*ACC_W-1:0]         psum_out_flat,
-    // Done pulse — fires 12 cycles after last activation
+    // Done pulse, fires 12 cycles after last activation
     output reg                           done
 );
 
@@ -125,7 +125,7 @@ module systolic_array #(
     endgenerate
 
 // ---------------------------------------------------------------------------
-// Done signal — shift register tracks activation valid through pipeline
+// Done signal: a shift register tracks activation valid through pipeline
 // ---------------------------------------------------------------------------
 reg [11:0] act_valid_sr;
 wire       act_valid = |act_in_flat;

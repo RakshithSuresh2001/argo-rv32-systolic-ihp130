@@ -3,10 +3,10 @@
 # usage: ./run_gls.sh [prog] [zero|sdf|sdfnoic] [timeout_us] [sram_en]
 #   prog     hello | sa_test | sram_test | post   (default hello)
 #   sram_en  0 = SRAM test block detached, 1 = enabled (default 1)
-#   RUN=runs/<tag>/final overrides the run (default runs/sram_full4/final)
+#   RUN=runs/<tag>/final overrides the run (default runs/sram_full6/final)
 cd "$(dirname "$0")"
 PROG=${1:-hello}; MODE=${2:-zero}; TMO=${3:-40000}; EN=${4:-1}
-RUN=${RUN:-runs/sram_full4/final}
+RUN=${RUN:-runs/sram_full6/final}
 P=${CMOS5L_PDK_ROOT:-$HOME/ihp-open-pdk-dev}/ihp-sg13cmos5l/libs.ref
 NL=$RUN/nl/soc_padframe.nl.v
 [ -f "$NL" ] || { echo "netlist not found: $NL"; exit 1; }

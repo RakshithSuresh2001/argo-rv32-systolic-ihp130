@@ -1,5 +1,5 @@
 // =============================================================================
-// uart_tx.sv — Minimal 8N1 UART transmitter
+// uart_tx.sv: minimal 8N1 UART transmitter
 // Parameters : CLK_FREQ (Hz), BAUD_RATE (bps)
 // Interface  : AXI-stream-like (valid/ready handshake)
 // Usage      : Write byte to 0x2000_0000; poll bit[0] of same addr for ready
@@ -44,7 +44,7 @@ end
 // ---------------------------------------------------------------------------
 // Shift register and bit counter
 // ---------------------------------------------------------------------------
-// Frame: [start=0] [d0..d7] [stop=1]  — 10 bits total
+// Frame: [start=0] [d0..d7] [stop=1], 10 bits total
 // ---------------------------------------------------------------------------
 reg [9:0] shift_reg;    // {stop, d7..d0, start}
 reg [3:0] bit_cnt;      // counts 0..9

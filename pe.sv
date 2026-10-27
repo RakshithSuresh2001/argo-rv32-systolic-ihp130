@@ -1,5 +1,5 @@
 // =============================================================================
-// pe.sv — Processing Element (Yosys-compatible)
+// pe.sv: processing element (Yosys-compatible)
 // Author: Rakshith Suresh
 // =============================================================================
 module pe #(

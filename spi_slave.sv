@@ -1,5 +1,5 @@
 // =============================================================================
-// spi_slave.sv — SPI Slave Controller for 8x8 Systolic Array
+// spi_slave.sv: SPI slave for boot loading and direct array access
 // Author: Rakshith Suresh
 // Mode 0: CPOL=0, CPHA=0
 // Commands:
@@ -62,7 +62,7 @@ wire cs_active = ~cs_sync[1];
 wire mosi_d    = mosi_sync[1];
 
 // -------------------------------------------------------------------------
-// RX — shift in 8 bits per byte on rising edge
+// RX: shift in 8 bits per byte on rising edge
 // -------------------------------------------------------------------------
 reg [7:0] shift_rx;
 reg [2:0] bit_cnt;
@@ -95,7 +95,7 @@ always @(posedge clk or negedge rst_n) begin
 end
 
 // -------------------------------------------------------------------------
-// TX — output on falling edge (Mode 0: data changes on falling, sampled on rising)
+// TX: output on falling edge (Mode 0: data changes on falling, sampled on rising)
 // -------------------------------------------------------------------------
 reg [7:0]   shift_tx;
 reg [7:0]   tx_byte_idx;

@@ -1,3 +1,5 @@
+  // Debug probe used to root-cause the GLS multiply hang (WAIVERS.md W5).
+  // Net names (_005099_, net1070, net2985) are specific to run sram_full6.
   // GLS probe: PCPI multiplier handshake, printed every cycle while pcpi_valid != 0
   wire       pm_v   = dut.\i_soc_top.u_cpu.genblk1.genblk1.pcpi_mul.pcpi_valid ;
   wire       pm_any = dut.\i_soc_top.u_cpu.genblk1.genblk1.pcpi_mul.instr_any_mul ;
