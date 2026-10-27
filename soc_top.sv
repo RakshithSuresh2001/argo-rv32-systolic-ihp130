@@ -132,7 +132,7 @@ wire sel_dsram;   // data SRAM
 wire sel_uart;    // UART peripheral
 wire sel_sa;
 wire sel_stest;   // SRAM test block
-wire sel_td;      // reserved for the demonstrator block (0x4000_0000)
+wire sel_td;      // reserved (0x4000_0000)
 
 assign sel_sa = mem_valid && !mem_instr && (mem_addr[31:8] == 24'h100000);
 assign sel_isram = mem_valid && (mem_addr[31:16] == 16'h0000);

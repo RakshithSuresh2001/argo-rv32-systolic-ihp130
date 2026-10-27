@@ -1,5 +1,5 @@
 #!/bin/bash
-# CI entry point for the Symbiotic EDA bouquet [202610] IHP ASIC accelerator
+# CI entry point: lint, firmware build and RTL regression
 set -e
 cd "$(dirname "$0")"
 export CMOS5L_PDK_ROOT=${CMOS5L_PDK_ROOT:-/usr/local/share/OpenPDKs/IHP-Open-PDK}
