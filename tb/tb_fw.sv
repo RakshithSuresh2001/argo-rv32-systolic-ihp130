@@ -31,15 +31,21 @@ module tb_fw;
   reg loaded = 0;
 
   reg [7:0] rx; integer b;
+  reg [31:0] head = 0; integer nch = 0;
+  reg multiline = 0; initial multiline = $test$plusargs("multiline");
   initial forever begin
     @(negedge uart_tx);
     #(BIT_NS*1.5);
     for (b = 0; b < 8; b = b + 1) begin rx[b] = uart_tx; #(BIT_NS); end
     if (rx == 8'h0A) begin
       $display("[%0t] UART line: \"%0s\"", $time, line);
-      if (line == expect_s) $display("PASS"); else $display("FAIL: expected \"%0s\"", expect_s);
-      $finish;
-    end else line = {line[8*63-1:0], rx};
+      if (line == expect_s) begin $display("PASS"); $finish; end
+      if (!multiline || head == "FAIL") begin $display("FAIL: expected \"%0s\"", expect_s); $finish; end
+      line = 0; head = 0; nch = 0;      // +multiline: keep reading until the expected line
+    end else begin
+      line = {line[8*63-1:0], rx};
+      if (nch < 4) begin head = {head[23:0], rx}; nch = nch + 1; end
+    end
   end
 
   initial begin
