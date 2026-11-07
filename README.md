@@ -2,7 +2,7 @@
 
 **A RISC-V SoC with an 8x8 int8 systolic array, taken from RTL to signoff-clean GDS on IHP's open 130 nm SG13CMOS5L process using only open-source tools and KLayout-only signoff.**
 
-Argo pairs a PicoRV32 core with a weight-stationary matrix engine, two 4 KB IHP SRAM macros, a detachable 2 KB SRAM test block on its own supply, an SPI boot loader, a UART and a full 16-pad IO ring with bond pads. The whole chip passes IHP's KLayout DRC, density, antenna and LVS decks, and the routed netlist boots and runs its self-checking firmware, including a power-on self-test of every memory, in gate-level simulation. It is planned for fabrication through IHP.
+Argo pairs a PicoRV32 core with a weight-stationary matrix engine, two 4 KB IHP SRAM macros, a detachable 2 KB SRAM test block on its own supply, an SPI boot loader, a UART and a full 16-pad IO ring with bond pads. The whole chip passes IHP's KLayout DRC, density, antenna and LVS decks, and the routed netlist boots and runs its self-checking firmware, including a power-on self-test of every memory, in gate-level simulation. v2.2 was submitted for fabrication in November 2026; the tapeout at IHP is handled by Symbiotic EDA.
 
 ![Argo layout](docs/argo_layout.png)
 
@@ -40,16 +40,17 @@ Argo pairs a PicoRV32 core with a weight-stationary matrix engine, two 4 KB IHP 
 | | |
 |---|---|
 | Process | IHP SG13CMOS5L, 130 nm CMOS, 5 metal layers, 1.2 V core |
-| Die | 2.0 x 2.0 mm (core 1.3 x 1.3 mm) |
+| Status | v2.2 taped out, November 2026 (tapeout at IHP handled by Symbiotic EDA) |
+| Die | 2.2 x 2.2 mm (core 1.5 x 1.5 mm), QFN32 package |
 | CPU | PicoRV32, RV32I + hardware multiply, booted over SPI |
 | Accelerator | 8x8 weight-stationary systolic array, signed int8 inputs, 32-bit accumulators |
 | Peak compute | 64 MACs per cycle, 6.4 GMAC/s at 100 MHz |
 | Memory | 2 x 4 KB `RM_IHPSG13_1P_1024x32` SRAM macros (instruction and data) |
 | Peripherals | SPI slave (boot loader plus direct array access), 8N1 UART TX at 115200 baud |
 | IO | 16 pads: 7 inputs, 2 outputs (16 mA), 7 power (two core VDD/VSS pairs, IOVDD/IOVSS, VDD_SRAM), plus 4 corners and 70 x 70 um bond pads |
-| Clock | 100 MHz at typical and fast corners, about 85 MHz worst case (slow corner) |
-| Size | 68,711 standard cells, 5,343 flip-flops, 62% standard cell utilization |
-| Power | About 44 mW total (typical corner, default switching activity) |
+| Clock | 100 MHz at typical and fast corners, about 88 MHz worst case (slow corner) |
+| Size | 70,228 standard cells, 5,428 flip-flops, 55% core utilization |
+| Power | About 47.5 mW at default switching activity, 67 mW at 0.2 activity (typical corner) |
 | Flow | LibreLane 3.0.14 (Chip flow), Yosys, OpenROAD, KLayout, Icarus Verilog |
 | Signoff | KLayout DRC, density, antenna and LVS: all clean |
 
@@ -294,11 +295,11 @@ The flow is LibreLane's **Chip** flow, configured in `config.yaml`. Every Magic 
 | `Netgen.LVS` | Replaced by `KLayout.LVS`, using the local deck in `lvs_local/` |
 | `KLayout.XOR`, illegal overlap check | Removed. Both depend on a Magic stream-out |
 
-**Floorplan.** The die is 2000 x 2000 um and the core is 1300 x 1300 um, with the two SRAMs stacked in the middle of the core.
+**Floorplan.** The die is 2200 x 2200 um and the core is 1500 x 1500 um, with the two SRAMs stacked in the middle of the core.
 
-**Power grid.** A custom PDN (`pdn_cfg_cmos5l.tcl`) builds a 5 um core ring connected to the pads, with straps at a 30 um pitch and dedicated macro connections. Static IR drop is under 0.1 mV, though that analysis uses default switching activity.
+**Power grid.** A custom PDN (`pdn_cfg_cmos5l.tcl`) builds a 5 um core ring connected to the pads, with straps at a 30 um pitch and dedicated macro connections. Static IR drop is 28 mV on VDD and 36 mV on VSS (about 3%), with sources at the real supply pads and 0.2 switching activity (W6 in `WAIVERS.md`).
 
-**Placement, CTS and routing.** These are standard LibreLane steps, with timing repair after global routing and a hold margin of 0.05 ns during placement. Detailed routing converges from 11,066 DRC violations on the first iteration to 0 on the sixth. Total wire length is 1.93 m.
+**Placement, CTS and routing.** These are standard LibreLane steps, with timing repair after global routing and a hold margin of 0.05 ns during placement. Detailed routing converges from 23,892 DRC violations on the first iteration to 0 on the fifth. Total wire length is 2.2 m.
 
 **Antenna.** The router inserts 1,270 diodes. Its own checker still flags 152 nets, but IHP's KLayout antenna deck, which is the signoff check, reports 0.
 
