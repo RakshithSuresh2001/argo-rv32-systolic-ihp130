@@ -2,13 +2,11 @@
 
 **A RISC-V SoC with an 8x8 int8 systolic array, taken from RTL to signoff-clean GDS on IHP's open 130 nm SG13CMOS5L process using only open-source tools and KLayout-only signoff.**
 
-Argo pairs a PicoRV32 core with a weight-stationary matrix engine, two 4 KB IHP SRAM macros, a detachable 2 KB SRAM test block on its own supply, an SPI boot loader, a UART and a full 16-pad IO ring with bond pads. The whole chip passes IHP's KLayout DRC, density, antenna and LVS decks, and the routed netlist boots and runs its self-checking firmware, including a power-on self-test of every memory, in gate-level simulation. v2.2 was submitted for fabrication in November 2026; the tapeout at IHP is handled by Symbiotic EDA.
+Argo pairs a PicoRV32 core with a weight-stationary matrix engine, two 4 KB IHP SRAM macros, a detachable 2 KB SRAM test block on its own supply, an SPI boot loader, a UART and a full 16-pad IO ring with bond pads. The whole chip passes IHP's KLayout DRC, density, antenna and LVS decks, and the routed netlist boots and runs its self-checking firmware, including a power-on self-test of every memory, in gate-level simulation. **v2.2 was taped out in November 2026; the tapeout at IHP is handled by Symbiotic EDA.**
 
-![Argo layout](docs/argo_layout.png)
+![Argo v2.2 die](docs/argo_die_clean.png)
 
-*Full chip, 2.2 x 2.2 mm. The two yellow blocks are the instruction and data SRAMs. The pad ring and bond pads run around the edge, and the seal ring sits at the outer border.*
-
-<img width="2400" height="2400" alt="argo_die_clean" src="https://github.com/user-attachments/assets/c933f2e6-bafc-4dbf-b18b-75b3cd6a632a" />
+*Argo v2.2 as taped out, 2.2 x 2.2 mm, metal layers from the tape-out GDS with fill hidden. The two IHP SRAMs sit in the middle column, the SRAM test block at the top right, and the pad ring with its bond pads around the edge.*
 
 ---
 
@@ -25,13 +23,14 @@ Argo pairs a PicoRV32 core with a weight-stationary matrix engine, two 4 KB IHP 
 9. [Clock, reset and constraints](#clock-reset-and-constraints)
 10. [Pad ring and pinout](#pad-ring-and-pinout)
 11. [Physical design](#physical-design)
-12. [Results](#results)
-13. [Verification](#verification)
-14. [KLayout-only signoff: what it took](#klayout-only-signoff-what-it-took)
-15. [Known limits](#known-limits)
-16. [Repository layout](#repository-layout)
-17. [Reproducing](#reproducing)
-18. [Tool versions](#tool-versions)
+12. [SRAM test block](#sram-test-block)
+13. [Results](#results)
+14. [Verification](#verification)
+15. [KLayout-only signoff: what it took](#klayout-only-signoff-what-it-took)
+16. [Known limits](#known-limits)
+17. [Repository layout](#repository-layout)
+18. [Reproducing](#reproducing)
+19. [Tool versions](#tool-versions)
 
 ---
 
@@ -45,18 +44,21 @@ Argo pairs a PicoRV32 core with a weight-stationary matrix engine, two 4 KB IHP 
 | CPU | PicoRV32, RV32I + hardware multiply, booted over SPI |
 | Accelerator | 8x8 weight-stationary systolic array, signed int8 inputs, 32-bit accumulators |
 | Peak compute | 64 MACs per cycle, 6.4 GMAC/s at 100 MHz |
-| Memory | 2 x 4 KB `RM_IHPSG13_1P_1024x32` SRAM macros (instruction and data) |
+| Memory | 2 x 4 KB `RM_IHPSG13_1P_1024x32` SRAM macros (instruction and data), plus a detachable 2 KB SRAM test block on its own supply |
 | Peripherals | SPI slave (boot loader plus direct array access), 8N1 UART TX at 115200 baud |
 | IO | 16 pads: 7 inputs, 2 outputs (16 mA), 7 power (two core VDD/VSS pairs, IOVDD/IOVSS, VDD_SRAM), plus 4 corners and 70 x 70 um bond pads |
 | Clock | 100 MHz at typical and fast corners, about 88 MHz worst case (slow corner) |
 | Size | 70,228 standard cells, 5,428 flip-flops, 55% core utilization |
 | Power | About 47.5 mW at default switching activity, 67 mW at 0.2 activity (typical corner) |
 | Flow | LibreLane 3.0.14 (Chip flow), Yosys, OpenROAD, KLayout, Icarus Verilog |
-| Signoff | KLayout DRC, density, antenna and LVS: all clean |
+| Signoff | KLayout DRC, density, antenna and LVS: all clean. Static IR drop about 3% |
+| CI | Built and checked on BlueGarden, Symbiotic EDA's self-hosted CI/CD system |
 
 ---
 
 ## Architecture
+
+![Argo block diagram](docs/argo_block_diagram.png)
 
 ```mermaid
 flowchart LR
@@ -76,6 +78,7 @@ flowchart LR
     DEC <--> DS[DSRAM ctrl] <--> DSM[(4 KB SRAM macro)]
     DEC <--> REG[Array register block]
     DEC --> UART[UART TX] --> UTX
+    DEC <--> ST[SRAM test wrapper] <--> STM[(2 KB SRAM test macro<br/>own VDD_SRAM)]
 
     SPIS -->|load program| IS
     SPIS -->|run / halt| CPU
@@ -103,6 +106,8 @@ The SPI slave takes priority over the CPU on the array's inputs whenever chip se
 | `0x0001_0000 - 0x0001_0FFF` | 4 KB | Data SRAM | Load and store. BSS and stack live here |
 | `0x1000_0000 - 0x1000_00FF` | 32 B used | Systolic array registers | See the register map below |
 | `0x2000_0000` | 1 word | UART | Write: send a byte. Read: bit 0 = TX ready |
+| `0x3000_0000 - 0x3000_07FC` | 2 KB | SRAM test block | Load and store, byte lanes. Reads 0 when detached |
+| `0x3000_1000` | 1 word | SRAM test status | Bit 0 = enabled by the `sram_en` strap, bits 31:8 = ID |
 
 The decoder only compares the upper address bits, so each SRAM aliases across its 64 KB window. An access to an unmapped address never gets `mem_ready`, so the CPU stalls on purpose.
 
@@ -246,7 +251,7 @@ The 307-word `sa_test` program loads in about 1.8 ms at 5 MHz SCLK.
 
 ## Clock, reset and constraints
 
-- **Clock:** one 100 MHz clock from the `clk` pad. The clock tree is built by OpenROAD CTS: 1,148 clock buffers and 441 clock inverters.
+- **Clock:** one 100 MHz clock from the `clk` pad. The clock tree is built by OpenROAD CTS: 1,395 clock buffers and 510 clock inverters.
 - **Reset:** `rst_n` is asynchronous active-low. A two-flop synchronizer asserts asynchronously and releases on a clock edge, and every internal block uses the synchronized reset. The systolic array's reset goes through a registered mux, so switching between the CPU and SPI can't glitch it.
 
 The SDC is `soc_padframe.sdc`:
@@ -272,14 +277,18 @@ The SDC is `soc_padframe.sdc`:
 | North | `vss_pad` | `sg13cmos5l_IOPadVss` | Core ground |
 | West | `input_PAD[0]` | `sg13cmos5l_IOPadIn` | `uart_rx` (unused) |
 | West | `output_PAD[0]` | `sg13cmos5l_IOPadOut16mA` | `uart_tx` |
+| West | `vdd_pad2` | `sg13cmos5l_IOPadVdd` | Second core supply |
+| West | `vss_pad2` | `sg13cmos5l_IOPadVss` | Second core ground |
+| West | `sram_en_pad` | `sg13cmos5l_IOPadIn` | SRAM test block strap (pull down on the board) |
 | East | `input_PAD[1]` | `sg13cmos5l_IOPadIn` | `spi_clk` |
 | East | `input_PAD[2]` | `sg13cmos5l_IOPadIn` | `spi_cs_n` |
 | East | `input_PAD[3]` | `sg13cmos5l_IOPadIn` | `spi_mosi` |
 | East | `output_PAD[1]` | `sg13cmos5l_IOPadOut16mA` | `spi_miso` |
 | South | `iovdd_pad` | `sg13cmos5l_IOPadIOVdd` | IO supply |
 | South | `iovss_pad` | `sg13cmos5l_IOPadIOVss` | IO ground |
+| South | `vdd_sram_pad` | `sg13cmos5l_IOPadAnalog` | SRAM test block supply (1.2 V) |
 
-Each IO pad gets a 70 x 70 um bond pad on TopMetal1, offset (5, -70) um from the pad cell, which matches the PDK's own pad config. The PDK doesn't ship a bond pad cell, so `bondpad/` holds one generated with the PDK's `bondpad.py` script. The ring is closed with four `sg13cmos5l_Corner` cells and 122 filler cells, and a core power ring connects to the supply pads.
+Each IO pad gets a 70 x 70 um bond pad on TopMetal1, offset (5, -70) um from the pad cell, which matches the PDK's own pad config. The PDK doesn't ship a bond pad cell, so `bondpad/` holds one generated with the PDK's `bondpad.py` script. The ring is closed with four `sg13cmos5l_Corner` cells and filler cells, and a core power ring connects to the supply pads.
 
 ---
 
@@ -295,21 +304,38 @@ The flow is LibreLane's **Chip** flow, configured in `config.yaml`. Every Magic 
 | `Netgen.LVS` | Replaced by `KLayout.LVS`, using the local deck in `lvs_local/` |
 | `KLayout.XOR`, illegal overlap check | Removed. Both depend on a Magic stream-out |
 
-**Floorplan.** The die is 2200 x 2200 um and the core is 1500 x 1500 um, with the two SRAMs stacked in the middle of the core.
+**Floorplan.** The die is 2200 x 2200 um and the core is 1500 x 1500 um. The two IHP SRAMs are stacked in the middle of the core and the SRAM test block sits in the top-right corner.
 
-**Power grid.** A custom PDN (`pdn_cfg_cmos5l.tcl`) builds a 5 um core ring connected to the pads, with straps at a 30 um pitch and dedicated macro connections. Static IR drop is 28 mV on VDD and 36 mV on VSS (about 3%), with sources at the real supply pads and 0.2 switching activity (W6 in `WAIVERS.md`).
+**Power grid.** A custom PDN (`pdn_cfg_cmos5l.tcl`) builds a 5 um core ring connected to the pads, with straps at a 30 um pitch and dedicated macro connections. `VDD_SRAM` gets its own core ring and Metal4 straps over the test block, fed from its analog pad by `sram_test/vddsram_strap.tcl`. Static IR drop is 28 mV on VDD and 36 mV on VSS (about 3%), with sources at the real supply pads and 0.2 switching activity (W6 in `WAIVERS.md`).
 
-**Placement, CTS and routing.** These are standard LibreLane steps, with timing repair after global routing and a hold margin of 0.05 ns during placement. Detailed routing converges from 23,892 DRC violations on the first iteration to 0 on the fifth. Total wire length is 2.2 m.
+**Placement, CTS and routing.** These are standard LibreLane steps, with timing repair after global routing and a hold margin of 0.05 ns during placement. Repair wire length is capped at 600 um, so long nets get buffered instead of loaded with antenna diodes. Detailed routing converges from 23,892 DRC violations on the first iteration to 0 on the fifth. Total wire length is 2.2 m.
 
-**Antenna.** The router inserts 1,270 diodes. Its own checker still flags 152 nets, but IHP's KLayout antenna deck, which is the signoff check, reports 0.
+**Antenna.** The router inserts 1,266 diodes. Its own checker still flags 239 nets, but IHP's KLayout antenna deck, which is the signoff check, reports 0.
 
 **Fill.** The PDK fill script runs first, then a shaped top-up fill in `fill_local/` raises Metal2 and Metal3 from below 25% to 29% density.
 
 ---
 
+## SRAM test block
+
+Argo carries a 512x32 SRAM test block (byte write enables) generated with an open-source SRAM compiler, placed in the top-right corner of the core next to the two IHP 4 KB macros. Its purpose is to validate the compiler on IHP silicon, so it is fully detachable:
+
+- Own supply, `VDD_SRAM`, through a dedicated analog pad, tied into a separate core ring and Metal4 straps by `sram_test/vddsram_strap.tcl`.
+- `sram_en` strap pad. When low, the macro clock is gated, its inputs are forced to 0 and its outputs are masked, so the rest of the chip runs normally even if the SRAM is dead.
+- Memory map: `0x3000_0000`-`0x3000_07FC` data, `0x3000_1000` status/ID register.
+- Firmware `firmware/sram_test.c` runs March C-, address-in-data and byte/halfword lane tests.
+
+Regression: `./ci_regress.sh` builds the firmware and runs the full RTL regression (both `sram_en` settings plus forced-X fault cases). Set `CMOS5L_PDK_ROOT` to your IHP-Open-PDK checkout.
+
+Note: the generated SRAM macro views (GDS, LEF, SPICE, Liberty) are not included in this repo yet. `sram_test/sram_views.py` rebuilds them from the compiler output. The Liberty is a placeholder until characterized timing is available.
+
+---
+
 ## Results
 
-The tables in this section are from the v1 run `c5l_v3` (12 pads, no SRAM test block). v2.2 numbers are in the update section below, and its full metrics are in `results/metrics.json` (run `sram_full6`).
+All numbers are from the tape-out run `sram_full6`. The full metrics are in `results/metrics.json`, and every exception is written up in `WAIVERS.md`.
+
+![Signoff summary](docs/argo_signoff_table.png)
 
 ### Signoff
 
@@ -321,49 +347,51 @@ The tables in this section are from the v1 run `c5l_v3` (12 pads, no SRAM test b
 | LVS | KLayout | **Netlists match** |
 | Router DRC | OpenROAD | **0** |
 | Power grid connectivity | OpenROAD | **0** violations |
-| Gate-level simulation | Icarus + SDF | **hello and sa_test both PASS** |
+| Static IR drop | OpenROAD PSM | **28 / 36 mV** on VDD / VSS |
+| Gate-level simulation | Icarus, zero-delay and SDF cell delays | **POST passes with `sram_en` high and low** |
 
 ### Timing (10 ns clock)
 
-| Corner | Setup WNS | Setup TNS | Failing endpoints | Hold WNS |
-|---|---|---|---|---|
-| Fast, 1.32 V, -40 C | +5.23 ns | 0 | 0 | +0.03 ns |
-| Typical, 1.20 V, 25 C | +2.65 ns | 0 | 0 | +0.13 ns |
-| Slow, 1.08 V, 125 C | -1.66 ns | -211 ns | 512 | +0.26 ns |
+| Corner | Setup WNS | Setup TNS | Hold WNS |
+|---|---|---|---|
+| Fast, 1.32 V, -40 C | +5.23 ns | 0 | +0.035 ns |
+| Typical, 1.20 V, 25 C | +2.82 ns | 0 | +0.11 ns |
+| Slow, 1.08 V, 125 C | -1.38 ns | -15.8 ns | +0.25 ns |
 
-Hold is met at every corner on top of the 0.10 ns hold uncertainty in the SDC. Because of that, the chip works correctly at any clock up to its setup limit. The worst hold path, at the fast corner, is a short PE-to-PE hop inside the array. A worst-case part on a low supply at 125 C needs a clock of about 85 MHz.
+Hold is met at every corner on top of the 0.10 ns hold uncertainty in the SDC, so the chip works at any clock up to its setup limit. The worst hold path, at the fast corner, is a short PE-to-PE hop inside the array. A worst-case part on a low supply at 125 C needs a clock of about 88 MHz (W1 in `WAIVERS.md`).
 
 ### Area
 
 | Component | Area (mm²) | Count |
 |---|---|---|
-| Standard cells | 0.872 | 68,711 |
-| SRAM macros | 0.280 | 2 |
-| IO pads and fillers | 1.109 | 12 pads, 122 fillers |
-| Bond pads | 0.059 | 12 |
-| Die | 4.000 | |
+| Standard cells | 0.892 | 70,228 |
+| SRAM macros | 0.344 | 3 (two IHP 4 KB, one 2 KB test block) |
+| IO pads | 0.230 | 16 |
+| Pad corners and fillers | 1.022 | |
+| Bond pads | 0.078 | 16 |
+| Die | 4.840 | |
 
 The standard cell count breaks down as:
 
 | Class | Count |
 |---|---|
-| Combinational | 50,829 |
-| Flip-flops | 5,343 |
-| Timing repair buffers | 5,111 |
-| Antenna cells | 4,552 |
-| Inverters | 1,286 |
-| Clock buffers and inverters | 1,589 |
+| Combinational | 51,000 |
+| Timing repair buffers | 5,593 |
+| Flip-flops | 5,428 |
+| Antenna cells | 4,841 |
+| Clock buffers and inverters | 1,905 |
+| Inverters | 1,459 |
 
 ### Power (typical corner)
 
 | | |
 |---|---|
-| Internal | 37.4 mW |
-| Switching | 7.0 mW |
+| Internal | 39.6 mW |
+| Switching | 7.9 mW |
 | Leakage | 11 uW |
-| **Total** | **44.5 mW** |
+| **Total** | **47.5 mW** |
 
-This is OpenROAD's estimate with default activity factors, not from a simulation activity file.
+This is OpenROAD's estimate with default activity factors, not from a simulation activity file. The IR drop analysis uses a heavier 0.2 toggle rate on every net (67 mW).
 
 ---
 
@@ -378,20 +406,32 @@ Every test checks itself and prints PASS or FAIL. None of them need anyone to lo
 | `hello` | RTL | Firmware boots over SPI and prints `HI` |
 | `sa_test` | RTL | Firmware drives the array through MMIO. Five vector sets over three weight matrices, each checked against the CPU's own multiply. It covers mixed signs, a one-hot -1 (output = -W[3][c]), the -128 corner and a full matrix reload |
 | `sram_test` | RTL | March and address tests on the 2 KB SRAM test block, plus the detached case (`sram_en` low) with the macro outputs forced to X |
+| `lib_test` | RTL | First `libargo` program: UART helpers, then one 8x8 matrix-vector product on the array and on the CPU, compared result for result |
 | `post` | RTL | Power-on self-test: march tests on free ISRAM, DSRAM and the SRAM block, plus an array known-answer check. Prints `POST:I+D+A+S+`, or `S0` with the block detached |
 | `hello` (GLS) | Gate level | Same as above, on the routed v2.2 netlist |
 | `sa_test` (GLS) | Gate level | Same as above, including the full 307-word SPI boot, about 2.9 ms of simulated time |
 | `post` (GLS) | Gate level | Both strap settings on the routed netlist, about 16 ms and 13 ms of simulated time. `WAIVERS.md` (W5) explains how the CPU's non-reset flops are initialized |
-| `post` (GLS, SDF) | Gate level | Same, with typical-corner SDF cell delays. Results match the zero-delay runs cycle for cycle |
+| `post` (GLS, SDF) | Gate level | Same, with typical-corner SDF cell delays (interconnect delays stripped). Results match the zero-delay runs cycle for cycle |
 
 The RTL tests run against IHP's own behavioral SRAM models, not an idealized memory, so the macro's timing contract is exercised too. Gate-level simulation uses the final netlist with the PDK's standard cell, IO and SRAM Verilog models.
 
 ```
 $ ./run_regress.sh
-PASS  tb_boot
-PASS  tb_spi
-PASS  hello
-PASS  sa_test
+PASS  tb_boot   sram_en=0
+PASS  tb_spi    sram_en=0
+PASS  hello     sram_en=0
+PASS  sa_test   sram_en=0
+PASS  tb_boot   sram_en=1
+PASS  tb_spi    sram_en=1
+PASS  hello     sram_en=1
+PASS  sa_test   sram_en=1
+PASS  sram_test sram_en=1 (march C-, addr, byte lanes)
+PASS  sram_test sram_en=0 (detached, reads 0)
+PASS  sram_test sram_en=0 + macro q forced X
+PASS  sa_test   sram_en=0 + macro q forced X
+PASS  post      sram_en=1 (ISRAM, DSRAM, array, SRAM block)
+PASS  post      sram_en=0 (SRAM block detached)
+PASS  lib_test  sram_en=1 (libargo, array vs CPU)
 ```
 
 ---
@@ -410,6 +450,7 @@ SG13CMOS5L is new, and taking a chip through signoff with KLayout alone needed s
 | The PDK has no bond pad cell, and its generator crashes writing the LEF | Generated the GDS, moved it to a lower-left origin, wrote the LEF by hand as `CLASS COVER` | `bondpad/` |
 | Bond pads plus IO terminals gave each port two pins, a router error (DRT-0302) | The bond pad carries the only terminal | `config.yaml` |
 | Several LibreLane scripts assume Magic or SG13G2 conventions | 10 script changes (antenna repair, GRT, IO, global connections, RC, CTS, DRT, RC dump, STA corners, Yosys common) | `librelane-3.0.14-local.patch`, `librelane_scripts/` |
+| The analog `VDD_SRAM` pad only exposes Metal3 on its core side, which the ring generator doesn't reach | A post-PDN script draws the strap and vias | `sram_test/vddsram_strap.tcl` |
 | Icarus crashes on SDF interconnect delays | GLS strips interconnect delays and keeps cell delays | `run_gls.sh` |
 
 Timing-driven RTL changes made along the way:
@@ -423,13 +464,14 @@ Timing-driven RTL changes made along the way:
 ## Known limits
 
 - **LVS coverage** is the standard cells and the top-level wiring. Pads and SRAM macros are black-boxed. SRAM hookup is checked three other ways: a pin check against the RTL, gate-level simulation, and a count of power vias on every supply stripe (`count_sram_vias.py`, `sram_pins.py`).
-- **Slow corner timing.** Setup misses 100 MHz by 1.66 ns. A few high-fanout decode nets (`a21oi_2` drivers with 40 to 100 loads) also cause 876 slew violations at the slow corner and 171 max-fanout violations at all corners. Max capacitance is 0 everywhere. A larger repair slew margin should fix the slew. It wasn't applied, since typical and fast pass and hold is met at every corner.
+- **Slow corner timing.** Setup misses 100 MHz by 1.38 ns, so a worst-case part needs about 88 MHz. 66 slew, 224 fan-out and 7 capacitance violations remain at the slow corner, mostly antenna diode loads on the `mem_wdata` bus (W1, W2). Typical and fast pass, and hold is met at every corner.
 - **No array status register.** The array's `done` pulse only went to the interrupt line, which is disabled, so firmware waits a fixed delay instead of polling. The delay has a wide margin over the 27-cycle pipeline.
 - **No divide.** `ENABLE_DIV=0`, so the firmware must not use divide or remainder instructions.
 - **UART RX** has a pad but no receiver.
 - **Timing was extracted before metal fill.** Fill adds coupling capacitance that this STA doesn't see.
 - **Fill rules.** The top-up fill uses 0.42 um spacing and 1.0 um minimum width. The tech file lists stricter values (`MFil_b` 0.6 um, `MFil_a1` 2.0 um) that the DRC deck doesn't check. Waiting on confirmation from IHP.
 - **Power numbers** use default activity factors, not simulation activity.
+- **Gate-level simulation needs the CPU's non-reset flops initialized.** PicoRV32's multiplier counter has no reset, so a 4-state simulator sees X and every multiply hangs, while silicon is fine (W5, `gls_xinit.py`). Adding resets to those flops is planned for the next version.
 
 ---
 
@@ -448,10 +490,17 @@ uart_tx.sv                    UART transmitter
 config.yaml                   LibreLane configuration
 soc_padframe.sdc              timing constraints
 pdn_cfg_cmos5l.tcl            power grid
-firmware/                     start.S, linker script, hello.c, sa_test.c, Makefile
+firmware/                     start.S, linker script, Makefile, hello.c, sa_test.c, sram_test.c, post.c, lib_test.c
+firmware/libargo/             header-only support library (UART, timer, systolic array)
 tb/                           RTL testbenches (tb_gls.sv is generated by run_gls.sh)
-run_regress.sh                RTL regression, 4 tests
+run_regress.sh                RTL regression, 15 checks
+ci_regress.sh                 CI entry point: lint, firmware build and RTL regression
 run_gls.sh                    gate-level simulation on the routed netlist
+gls_xinit.py                  initializes the CPU's non-reset flops for gate-level simulation (W5)
+signoff_check.sh              signoff gate: fails on any nonzero DRC, LVS, density or antenna count
+irdrop_check.sh               static IR drop with sources at the supply pads
+WAIVERS.md                    every signoff exception with reason, scope and owner
+sram_test/                    SRAM test block wrapper scripts and views tooling
 lvs_local/, mk_lvs_local.sh   local KLayout LVS deck with black-box support
 fill_local/                   shaped top-up metal fill
 bondpad/                      70 x 70 um bond pad (GDS, LEF, Verilog stub)
@@ -462,7 +511,7 @@ librelane_scripts/            the same changes as plain files, for reading
 results/                      GDS, final netlist, typical SDF, metrics, GLS and LVS logs
 bright.lyp                    KLayout layer colors used for the layout image
 TOOL_VERSIONS.txt             exact tool versions on the reference machine
-docs/                         images
+docs/                         datasheet, bring-up notes and images
 ```
 
 ---
@@ -531,24 +580,6 @@ klayout -nn $CMOS5L_PDK_ROOT/ihp-sg13cmos5l/libs.tech/klayout/tech/sg13cmos5l.ly
 | Magic / Netgen | not used |
 
 The full list is in `TOOL_VERSIONS.txt`.
-
----
-## Update: SRAM test block (October 2026)
-
-Argo now carries a 512x32 SRAM test block (byte write enables) generated with an open-source SRAM compiler, placed in the top-right corner of the core next to the two IHP 4 KB macros. Its purpose is to validate the compiler on IHP silicon, so it is fully detachable:
-
-- Own supply, `VDD_SRAM`, through a dedicated analog pad, tied into a separate core ring and Metal4 straps by `sram_test/vddsram_strap.tcl`.
-- `sram_en` strap pad. When low, the macro clock is gated, its inputs are forced to 0 and its outputs are masked, so the rest of the chip runs normally even if the SRAM is dead.
-- Memory map: `0x3000_0000`-`0x3000_07FC` data, `0x3000_1000` status/ID register.
-- Firmware `firmware/sram_test.c` runs March C-, address-in-data and byte/halfword lane tests.
-
-The die is now 2.2 x 2.2 mm with 16 pads, including a second VDD/VSS pair for power delivery. See [docs/DATASHEET.md](docs/DATASHEET.md) and [docs/BRINGUP.md](docs/BRINGUP.md). Signoff (KLayout only): DRC 0, LVS 0, density 0, antenna 0, route DRC 0. Typical corner setup slack +2.35 ns. Registering the CPU reset that drives the register-file write enables cut slow-corner TNS from -211 ns to -18.7 ns; with the second supply pad pair the slow corner sits at -2.07 ns WNS (about 83 MHz worst case).
-
-**v2.2.** Capping the resizer's wire length at 600 um made the flow buffer the long `mem_wdata` bus instead of hanging up to 200 antenna diodes on each bit. Slow-corner WNS improved from -2.07 ns to -1.38 ns (about 88 MHz worst case), typical-corner slack to +2.82 ns, slew violations dropped from 1,297 to 66 and antenna diodes from 2,086 to 1,266. Signoff is still clean, checked by `signoff_check.sh`. Gate-level simulation now runs the power-on self-test on the routed netlist in both strap settings. The remaining waivers are listed in [WAIVERS.md](WAIVERS.md).
-
-Regression: `./ci_regress.sh` builds the firmware and runs 12 tests (both `sram_en` settings plus forced-X fault cases). Set `CMOS5L_PDK_ROOT` to your IHP-Open-PDK checkout.
-
-Note: the generated SRAM macro views (GDS, LEF, SPICE, Liberty) are not included in this repo yet. `sram_test/sram_views.py` and `migrate_memgen.sh` rebuild them from the compiler output. The Liberty is a placeholder until characterized timing is available.
 
 ---
 ## Acknowledgments
