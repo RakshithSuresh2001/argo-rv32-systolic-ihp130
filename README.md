@@ -8,6 +8,10 @@ Argo pairs a PicoRV32 core with a weight-stationary matrix engine, two 4 KB IHP 
 
 *Argo as taped out, 2.2 x 2.2 mm, metal layers from the tape-out GDS with fill hidden. The two IHP SRAMs sit in a column right of center, the SRAM test block at the top right, the collaborator's test structure at the top left, and the pad ring with its bond pads around the edge.*
 
+![Argo die in KLayout colors](docs/argo_die_klayout.png)
+
+*The same die in KLayout with IHP's SG13CMOS5L layer colors: Metal1 (blue), Metal2 (gray), Metal3 (red), Metal4 (green), TopMetal1 (cream) and the seal ring.*
+
 ---
 
 ## Contents
